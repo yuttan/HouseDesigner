@@ -78,9 +78,10 @@
   .card-del:hover { color: #c8956c; background: #2a2018; }
 
   /* ピン */
-  .pin { position: absolute; transform: translate(-50%, -100%); cursor: pointer; transition: transform 0.15s; z-index: 10; }
+  .pin { position: absolute; transform: translate(-50%, -100%); cursor: grab; transition: transform 0.15s; z-index: 10; }
   .pin:hover { transform: translate(-50%, -100%) scale(1.2); z-index: 20; }
   .pin.selected { z-index: 20; transform: translate(-50%, -100%) scale(1.15); }
+  .pin.dragging { cursor: grabbing; opacity: 0.85; transform: translate(-50%, -100%) scale(1.25); z-index: 50; }
   .pin-icon { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.3); }
   .pin-icon span { transform: rotate(45deg); font-size: 13px; }
   .pin-label { background: rgba(13,13,26,0.85); color: #e8e2d9; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-top: 4px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; text-align: center; }
@@ -760,6 +761,8 @@ canvasArea.addEventListener('drop', async e => {
 });
 
 // ========== PINS ==========
+let pinDrag = null; // { id, startX, startY, moved }
+
 function updatePins() {
   pinContainer.innerHTML = '';
   const filtered = state.filterCat === 'all'
@@ -786,13 +789,72 @@ function updatePins() {
       <div class="pin-icon" style="background:${ci.color}"><span>${ci.icon}</span></div>
       <div class="pin-label">${a.room || a.material || ci.label}</div>
     `;
-    pin.addEventListener('click', e => { e.stopPropagation(); selectAnnotation(a.id); });
+
+    // ピンドラッグ開始
+    pin.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      pinDrag = { id: a.id, startX: e.clientX, startY: e.clientY, moved: false };
+      pin.style.transition = 'none';
+      pin.style.zIndex = '50';
+      hideTooltip();
+    });
+
+    pin.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!pinDrag?.moved) selectAnnotation(a.id);
+    });
     pin.addEventListener('dblclick', e => { e.stopPropagation(); openModal(a.id); });
-    pin.addEventListener('mouseenter', e => showTooltip(e, a));
+    pin.addEventListener('mouseenter', e => { if (!pinDrag) showTooltip(e, a); });
     pin.addEventListener('mouseleave', hideTooltip);
     pinContainer.appendChild(pin);
   });
 }
+
+// ピンドラッグ中（document レベルで追跡）
+document.addEventListener('mousemove', e => {
+  if (!pinDrag) return;
+  const dx = e.clientX - pinDrag.startX;
+  const dy = e.clientY - pinDrag.startY;
+  if (!pinDrag.moved && Math.hypot(dx, dy) < 4) return; // 微小な動きは無視
+  pinDrag.moved = true;
+
+  const pin = pinContainer.querySelector(`[data-id="${pinDrag.id}"]`);
+  if (!pin) return;
+  pin.classList.add('dragging');
+
+  const rect = canvasArea.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  pin.style.left = sx + 'px';
+  pin.style.top  = sy + 'px';
+});
+
+// ピンドラッグ終了 → 座標を確定
+document.addEventListener('mouseup', e => {
+  if (!pinDrag || !pinDrag.moved) { pinDrag = null; return; }
+
+  const rect = canvasArea.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  const img = screenToImage(sx, sy);
+
+  // 画像の範囲内にクランプ
+  if (state.image) {
+    img.x = Math.max(0, Math.min(state.image.width,  img.x));
+    img.y = Math.max(0, Math.min(state.image.height, img.y));
+  }
+
+  const a = state.annotations.find(x => x.id === pinDrag.id);
+  if (a) {
+    a.x = img.x;
+    a.y = img.y;
+  }
+
+  pinDrag = null;
+  updatePins();
+  renderList();
+});
 
 function showTooltip(e, a) {
   const ci = CAT_INFO[a.cat] || CAT_INFO.other;
