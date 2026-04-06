@@ -142,7 +142,8 @@
     <button id="btn-page-next">▶</button>
   </div>
 
-  <!-- クロップ解除ボタン（クロップ中のみ表示） -->
+  <!-- クロップ中のみ表示するボタン群 -->
+  <button class="btn btn-secondary" id="btn-crop-save" style="display:none; border-color:#7ed321; color:#7ed321;">📷 画像を保存</button>
   <button class="btn btn-secondary" id="btn-crop-clear" style="display:none; border-color:#f5a623; color:#f5a623;">✂ クロップ中 ✕ 解除</button>
 
   <div class="header-actions">
@@ -339,6 +340,7 @@ const zoomLabel    = document.getElementById('zoom-label');
 const tooltip      = document.getElementById('tooltip');
 const cropConfirmBar = document.getElementById('crop-confirm-bar');
 const btnCropClear   = document.getElementById('btn-crop-clear');
+const btnCropSave    = document.getElementById('btn-crop-save');
 const pdfLoading     = document.getElementById('pdf-loading');
 
 // ========== CANVAS ==========
@@ -667,6 +669,7 @@ document.getElementById('btn-crop-apply').addEventListener('click', () => {
   state.cropRect = null;
   cropConfirmBar.style.display = 'none';
   btnCropClear.style.display = '';
+  btnCropSave.style.display = '';
   fitCrop();
   redraw();
   updatePins();
@@ -683,9 +686,25 @@ btnCropClear.addEventListener('click', () => {
   state.crop = null;
   state.cropRect = null;
   btnCropClear.style.display = 'none';
+  btnCropSave.style.display = 'none';
   fitImage();
   redraw();
   updatePins();
+});
+
+// クロップ範囲だけをPNG画像としてダウンロード
+btnCropSave.addEventListener('click', () => {
+  if (!state.crop || !state.image) return;
+  const { x, y, w, h } = state.crop;
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = Math.round(w);
+  offscreen.height = Math.round(h);
+  const offCtx = offscreen.getContext('2d');
+  offCtx.drawImage(state.image, x, y, w, h, 0, 0, w, h);
+  const a = document.createElement('a');
+  a.href = offscreen.toDataURL('image/png');
+  a.download = 'floorplan_crop_' + new Date().toISOString().slice(0,10) + '.png';
+  a.click();
 });
 
 // ========== MODE ==========
@@ -969,8 +988,8 @@ document.getElementById('json-input').addEventListener('change', e => {
       if (data.imageScale) state.imageScale = data.imageScale;
       if (data.offsetX !== undefined) state.offsetX = data.offsetX;
       if (data.offsetY !== undefined) state.offsetY = data.offsetY;
-      if (data.crop) { state.crop = data.crop; btnCropClear.style.display = ''; }
-      else { state.crop = null; btnCropClear.style.display = 'none'; }
+      if (data.crop) { state.crop = data.crop; btnCropClear.style.display = ''; btnCropSave.style.display = ''; }
+      else { state.crop = null; btnCropClear.style.display = 'none'; btnCropSave.style.display = 'none'; }
       updateZoomLabel();
       renderList();
       updatePins();
