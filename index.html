@@ -534,12 +534,42 @@ canvas.addEventListener('wheel', e => {
 
 // ========== PAN & CLICK ==========
 let panStart = null;
+let spaceDown = false;
+
+// Space キーでいつでもパンモードに
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.target.matches('input,textarea') && !spaceDown) {
+    spaceDown = true;
+    canvas.style.cursor = 'grab';
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space') {
+    spaceDown = false;
+    if (!panStart) updateCursor();
+  }
+});
+
+function updateCursor() {
+  if (spaceDown) { canvas.style.cursor = 'grab'; return; }
+  canvas.style.cursor = state.mode === 'pan' ? 'grab' : 'crosshair';
+}
 
 canvas.addEventListener('mousedown', e => {
-  if (e.button !== 0) return;
   const rect = canvas.getBoundingClientRect();
   const sx = e.clientX - rect.left;
   const sy = e.clientY - rect.top;
+
+  // 中ボタン or Space+左ボタン → パン（どのモードでも）
+  if (e.button === 1 || (e.button === 0 && spaceDown)) {
+    e.preventDefault();
+    panStart = { sx, sy, ox: state.offsetX, oy: state.offsetY };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+
+  if (e.button !== 0) return;
 
   if (state.mode === 'pan') {
     panStart = { sx, sy, ox: state.offsetX, oy: state.offsetY };
@@ -595,10 +625,12 @@ canvas.addEventListener('mousemove', e => {
 });
 
 canvas.addEventListener('mouseup', e => {
-  panStart = null;
-  canvas.style.cursor = state.mode === 'pan' ? 'grab' : (state.mode === 'crop' ? 'crosshair' : 'crosshair');
+  if (e.button === 1 || e.button === 0) {
+    panStart = null;
+    updateCursor();
+  }
 
-  if (state.cropSelecting) {
+  if (e.button === 0 && state.cropSelecting) {
     state.cropSelecting = false;
     if (state.cropRect && state.cropRect.w > 10 && state.cropRect.h > 10) {
       cropConfirmBar.style.display = 'flex';
@@ -610,8 +642,12 @@ canvas.addEventListener('mouseup', e => {
   }
 });
 
+// 中ボタンのデフォルト動作（スクロール等）を抑制
+canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+
 canvas.addEventListener('mouseleave', () => {
   panStart = null;
+  updateCursor();
 });
 
 // ========== クロップ操作 ==========
