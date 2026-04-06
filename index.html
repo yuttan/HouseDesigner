@@ -7,55 +7,55 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: #1f1d1b; color: #e8e2d9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
   /* ヘッダー */
-  header { background: #16213e; border-bottom: 1px solid #0f3460; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
-  header h1 { font-size: 18px; color: #e94560; letter-spacing: 1px; }
+  header { background: #2c2825; border-bottom: 1px solid #4a4238; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
+  header h1 { font-size: 18px; color: #c8956c; letter-spacing: 1px; }
   .header-actions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
   .btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
-  .btn-primary { background: #e94560; color: #fff; }
-  .btn-primary:hover { background: #c73652; }
-  .btn-secondary { background: #0f3460; color: #e0e0e0; border: 1px solid #e94560; }
-  .btn-secondary:hover { background: #1a4a80; }
+  .btn-primary { background: #c8956c; color: #fff; }
+  .btn-primary:hover { background: #b07d55; }
+  .btn-secondary { background: #4a4238; color: #e8e2d9; border: 1px solid #c8956c; }
+  .btn-secondary:hover { background: #5a4f44; }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
 
   /* ページセレクター（PDF用） */
-  #page-selector { display: none; align-items: center; gap: 6px; font-size: 13px; color: #e0e0e0; }
-  #page-selector button { background: #0f3460; border: 1px solid #e94560; color: #e0e0e0; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 13px; }
-  #page-selector button:hover { background: #1a4a80; }
+  #page-selector { display: none; align-items: center; gap: 6px; font-size: 13px; color: #e8e2d9; }
+  #page-selector button { background: #4a4238; border: 1px solid #c8956c; color: #e8e2d9; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 13px; }
+  #page-selector button:hover { background: #5a4f44; }
 
   /* メインレイアウト */
   .main { display: flex; flex: 1; overflow: hidden; }
 
   /* キャンバスエリア */
-  .canvas-area { flex: 1; position: relative; overflow: hidden; background: #0d0d1a; }
+  .canvas-area { flex: 1; position: relative; overflow: hidden; background: #181614; }
   #floorplan-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
-  .canvas-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #555; pointer-events: none; }
+  .canvas-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #6b5f54; pointer-events: none; }
   .canvas-placeholder.hidden { display: none; }
   .canvas-placeholder svg { opacity: 0.3; }
   .canvas-placeholder p { font-size: 14px; }
 
   /* ズームコントロール */
   .zoom-controls { position: absolute; bottom: 16px; left: 16px; display: flex; gap: 6px; }
-  .zoom-btn { width: 32px; height: 32px; background: #16213e; border: 1px solid #0f3460; color: #e0e0e0; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-  .zoom-btn:hover { background: #0f3460; }
-  .zoom-label { background: #16213e; border: 1px solid #0f3460; color: #aaa; border-radius: 6px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; min-width: 52px; justify-content: center; }
+  .zoom-btn { width: 32px; height: 32px; background: #2c2825; border: 1px solid #4a4238; color: #e8e2d9; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .zoom-btn:hover { background: #4a4238; }
+  .zoom-label { background: #2c2825; border: 1px solid #4a4238; color: #b8a898; border-radius: 6px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; min-width: 52px; justify-content: center; }
 
   /* モードバー */
-  .mode-bar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #16213e; border: 1px solid #0f3460; border-radius: 8px; padding: 4px; }
-  .mode-btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; background: transparent; color: #aaa; transition: all 0.2s; white-space: nowrap; }
-  .mode-btn.active { background: #e94560; color: #fff; }
-  .mode-btn:hover:not(.active) { background: #0f3460; color: #e0e0e0; }
+  .mode-bar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 4px; }
+  .mode-btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; background: transparent; color: #b8a898; transition: all 0.2s; white-space: nowrap; }
+  .mode-btn.active { background: #c8956c; color: #fff; }
+  .mode-btn:hover:not(.active) { background: #4a4238; color: #e8e2d9; }
 
   /* クロップ確定バー */
   #crop-confirm-bar { position: absolute; top: 60px; right: 16px; display: none; gap: 6px; z-index: 30; }
 
   /* サイドパネル */
-  .sidebar { width: 340px; background: #16213e; border-left: 1px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
-  .sidebar-header { padding: 12px 16px; border-bottom: 1px solid #0f3460; display: flex; align-items: center; gap: 8px; }
-  .sidebar-header h2 { font-size: 14px; color: #aaa; flex: 1; }
-  .filter-bar { padding: 8px 12px; border-bottom: 1px solid #0f3460; display: flex; gap: 4px; flex-wrap: wrap; }
+  .sidebar { width: 340px; background: #2c2825; border-left: 1px solid #4a4238; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+  .sidebar-header { padding: 12px 16px; border-bottom: 1px solid #4a4238; display: flex; align-items: center; gap: 8px; }
+  .sidebar-header h2 { font-size: 14px; color: #b8a898; flex: 1; }
+  .filter-bar { padding: 8px 12px; border-bottom: 1px solid #4a4238; display: flex; gap: 4px; flex-wrap: wrap; }
   .filter-btn { padding: 3px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
   .filter-btn.active { border-color: currentColor; }
 
@@ -63,19 +63,19 @@
   .annotation-list { flex: 1; overflow-y: auto; padding: 8px; }
   .annotation-list::-webkit-scrollbar { width: 4px; }
   .annotation-list::-webkit-scrollbar-track { background: transparent; }
-  .annotation-list::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
+  .annotation-list::-webkit-scrollbar-thumb { background: #4a4238; border-radius: 2px; }
 
-  .annotation-card { background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; cursor: pointer; transition: all 0.2s; position: relative; }
-  .annotation-card:hover { border-color: #e94560; }
-  .annotation-card.selected { border-color: #e94560; background: #1a0d15; }
+  .annotation-card { background: #181614; border: 1px solid #4a4238; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; cursor: pointer; transition: all 0.2s; position: relative; }
+  .annotation-card:hover { border-color: #c8956c; }
+  .annotation-card.selected { border-color: #c8956c; background: #2a2018; }
   .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .cat-badge { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .card-title { font-size: 13px; font-weight: 600; flex: 1; color: #e0e0e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .card-room { font-size: 11px; color: #888; }
-  .card-body { font-size: 11px; color: #aaa; line-height: 1.5; }
+  .card-title { font-size: 13px; font-weight: 600; flex: 1; color: #e8e2d9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-room { font-size: 11px; color: #8a7a6e; }
+  .card-body { font-size: 11px; color: #b8a898; line-height: 1.5; }
   .card-actions { display: flex; gap: 4px; margin-top: 6px; }
-  .card-del { position: absolute; top: 8px; right: 8px; background: none; border: none; color: #555; cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; }
-  .card-del:hover { color: #e94560; background: #1a0d15; }
+  .card-del { position: absolute; top: 8px; right: 8px; background: none; border: none; color: #6b5f54; cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; }
+  .card-del:hover { color: #c8956c; background: #2a2018; }
 
   /* ピン */
   .pin { position: absolute; transform: translate(-50%, -100%); cursor: pointer; transition: transform 0.15s; z-index: 10; }
@@ -83,19 +83,19 @@
   .pin.selected { z-index: 20; transform: translate(-50%, -100%) scale(1.15); }
   .pin-icon { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.3); }
   .pin-icon span { transform: rotate(45deg); font-size: 13px; }
-  .pin-label { background: rgba(13,13,26,0.85); color: #e0e0e0; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-top: 4px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .pin-label { background: rgba(13,13,26,0.85); color: #e8e2d9; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-top: 4px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 
   /* モーダル */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
   .modal-overlay.hidden { display: none; }
-  .modal { background: #16213e; border: 1px solid #0f3460; border-radius: 12px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-  .modal h3 { font-size: 16px; color: #e94560; margin-bottom: 16px; }
+  .modal { background: #2c2825; border: 1px solid #4a4238; border-radius: 12px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .modal h3 { font-size: 16px; color: #c8956c; margin-bottom: 16px; }
   .form-group { margin-bottom: 14px; }
-  .form-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
-  .form-control { width: 100%; background: #0d0d1a; border: 1px solid #0f3460; border-radius: 6px; color: #e0e0e0; padding: 8px 10px; font-size: 13px; outline: none; font-family: inherit; }
-  .form-control:focus { border-color: #e94560; }
-  .form-control::placeholder { color: #555; }
-  select.form-control option { background: #16213e; }
+  .form-group label { display: block; font-size: 12px; color: #b8a898; margin-bottom: 4px; }
+  .form-control { width: 100%; background: #181614; border: 1px solid #4a4238; border-radius: 6px; color: #e8e2d9; padding: 8px 10px; font-size: 13px; outline: none; font-family: inherit; }
+  .form-control:focus { border-color: #c8956c; }
+  .form-control::placeholder { color: #6b5f54; }
+  select.form-control option { background: #2c2825; }
   textarea.form-control { resize: vertical; min-height: 60px; }
   .cat-selector { display: flex; gap: 6px; flex-wrap: wrap; }
   .cat-opt { padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; opacity: 0.6; }
@@ -112,17 +112,17 @@
   .cat-other   { background: #9b9b9b; }
 
   /* ツールチップ */
-  .tooltip { position: fixed; background: #0d0d1a; border: 1px solid #e94560; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #e0e0e0; pointer-events: none; z-index: 200; max-width: 200px; line-height: 1.4; display: none; }
+  .tooltip { position: fixed; background: #181614; border: 1px solid #c8956c; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #e8e2d9; pointer-events: none; z-index: 200; max-width: 200px; line-height: 1.4; display: none; }
 
   /* ドロップゾーン強調 */
-  .canvas-area.drag-over { outline: 2px dashed #e94560; outline-offset: -4px; }
+  .canvas-area.drag-over { outline: 2px dashed #c8956c; outline-offset: -4px; }
 
-  .no-annotations { text-align: center; color: #555; font-size: 13px; padding: 32px 16px; }
+  .no-annotations { text-align: center; color: #6b5f54; font-size: 13px; padding: 32px 16px; }
 
   /* PDFローディング */
-  #pdf-loading { position: absolute; inset: 0; background: rgba(13,13,26,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 50; font-size: 14px; color: #aaa; }
+  #pdf-loading { position: absolute; inset: 0; background: rgba(13,13,26,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 50; font-size: 14px; color: #b8a898; }
   #pdf-loading.show { display: flex; }
-  .spinner { width: 36px; height: 36px; border: 3px solid #0f3460; border-top-color: #e94560; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .spinner { width: 36px; height: 36px; border: 3px solid #4a4238; border-top-color: #c8956c; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
@@ -367,7 +367,7 @@ function redraw() {
     ctx.fillRect(0, sc.y, sc.x, se.y - sc.y);
     ctx.fillRect(se.x, sc.y, canvas.width - se.x, se.y - sc.y);
     ctx.fillRect(0, se.y, canvas.width, canvas.height - se.y);
-    ctx.strokeStyle = '#e94560';
+    ctx.strokeStyle = '#c8956c';
     ctx.lineWidth = 2;
     ctx.strokeRect(sc.x, sc.y, se.x - sc.x, se.y - sc.y);
   }
@@ -375,9 +375,9 @@ function redraw() {
   // クロップ選択中の矩形
   if (state.cropSelecting && state.cropRect) {
     const r = state.cropRect;
-    ctx.fillStyle = 'rgba(233,69,96,0.15)';
+    ctx.fillStyle = 'rgba(200,149,108,0.15)';
     ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = '#e94560';
+    ctx.strokeStyle = '#c8956c';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 3]);
     ctx.strokeRect(r.x, r.y, r.w, r.h);
