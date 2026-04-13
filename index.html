@@ -1512,11 +1512,16 @@ headerMenu.addEventListener('click', e => e.stopPropagation());
 // ========== SIDEBAR TOGGLE ==========
 const sidebar = document.querySelector('.sidebar');
 const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
+function setSidebarCollapsed(collapsed) {
+  sidebar.classList.toggle('collapsed', collapsed);
+  btnSidebarToggle.textContent = collapsed ? '▶' : '📋';
+}
 btnSidebarToggle.addEventListener('click', () => {
-  sidebar.classList.toggle('collapsed');
-  btnSidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '📋';
+  setSidebarCollapsed(!sidebar.classList.contains('collapsed'));
   resizeCanvas();
 });
+// 画面幅が狭い場合は初期状態で閉じる
+if (window.innerWidth < 768) setSidebarCollapsed(true);
 
 // ========== PRINT ==========
 document.getElementById('btn-print').addEventListener('click', () => window.print());
