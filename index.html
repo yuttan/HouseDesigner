@@ -312,6 +312,30 @@
   </div>
 </div>
 
+<!-- Gist設定モーダル -->
+<div class="modal-overlay hidden" id="gist-modal">
+  <div class="modal" style="max-width:440px;">
+    <h3>⚙ GitHub Gist 設定</h3>
+    <div class="form-group">
+      <label>Personal Access Token <span style="color:#6b5f54;font-size:11px;">（gist スコープが必要）</span></label>
+      <input type="password" id="gist-token" class="form-control" placeholder="ghp_xxxx...">
+    </div>
+    <div class="form-group">
+      <label>Gist ID <span style="color:#6b5f54;font-size:11px;">（新規作成なら空欄）</span></label>
+      <input type="text" id="gist-id" class="form-control" placeholder="既存Gistを更新する場合に入力">
+    </div>
+    <div class="form-group">
+      <label>Gist の説明</label>
+      <input type="text" id="gist-desc" class="form-control" placeholder="間取りデザインメモ">
+    </div>
+    <p style="font-size:11px;color:#8a7a6e;margin-bottom:16px;">※ Token はこの端末の localStorage にのみ保存されます。他の端末と共有されません。</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btn-gist-modal-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="btn-gist-modal-save">保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="tooltip" id="tooltip"></div>
 
 <script>
@@ -1380,29 +1404,6 @@ renderList();
 updateZoomLabel();
 </script>
 
-<!-- Gist設定モーダル -->
-<div class="modal-overlay hidden" id="gist-modal">
-  <div class="modal" style="max-width:440px;">
-    <h3>⚙ GitHub Gist 設定</h3>
-    <div class="form-group">
-      <label>Personal Access Token <span style="color:#6b5f54;font-size:11px;">（gist スコープが必要）</span></label>
-      <input type="password" id="gist-token" class="form-control" placeholder="ghp_xxxx...">
-    </div>
-    <div class="form-group">
-      <label>Gist ID <span style="color:#6b5f54;font-size:11px;">（新規作成なら空欄）</span></label>
-      <input type="text" id="gist-id" class="form-control" placeholder="既存Gistを更新する場合に入力">
-    </div>
-    <div class="form-group">
-      <label>Gist の説明</label>
-      <input type="text" id="gist-desc" class="form-control" placeholder="間取りデザインメモ">
-    </div>
-    <p style="font-size:11px;color:#8a7a6e;margin-bottom:16px;">※ Token はこの端末の localStorage にのみ保存されます。他の端末と共有されません。</p>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" id="btn-gist-modal-cancel">キャンセル</button>
-      <button class="btn btn-primary" id="btn-gist-modal-save">保存</button>
-    </div>
-  </div>
-</div>
 
 <style media="print">
   header, .mode-bar, .zoom-controls, .sidebar, .modal-overlay, #crop-confirm-bar { display: none !important; }
