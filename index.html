@@ -727,6 +727,7 @@ canvas.addEventListener('mouseup', e => {
   if (e.button === 0 && state.currentStroke) {
     if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
     state.currentStroke = null;
+    saveToStorage();
     return;
   }
 
@@ -776,6 +777,7 @@ document.getElementById('btn-crop-apply').addEventListener('click', () => {
   fitCrop();
   redraw();
   updatePins();
+  saveToStorage();
 });
 
 document.getElementById('btn-crop-cancel').addEventListener('click', () => {
@@ -793,6 +795,7 @@ btnCropClear.addEventListener('click', () => {
   fitImage();
   redraw();
   updatePins();
+  saveToStorage();
 });
 
 // クロップ範囲だけをPNG画像としてダウンロード
@@ -851,9 +854,9 @@ document.querySelectorAll('.draw-width-btn').forEach(btn => {
   });
 });
 document.getElementById('draw-color').addEventListener('input', e => { state.drawColor = e.target.value; });
-document.getElementById('btn-draw-undo').addEventListener('click', () => { state.strokes.pop(); redrawStrokes(); });
+document.getElementById('btn-draw-undo').addEventListener('click', () => { state.strokes.pop(); redrawStrokes(); saveToStorage(); });
 document.getElementById('btn-draw-clear').addEventListener('click', () => {
-  if (confirm('描画を全て消去しますか？')) { state.strokes = []; redrawStrokes(); }
+  if (confirm('描画を全て消去しますか？')) { state.strokes = []; redrawStrokes(); saveToStorage(); }
 });
 
 // ========== FILE LOAD ==========
@@ -981,6 +984,7 @@ document.addEventListener('mouseup', e => {
   pinDrag = null;
   updatePins();
   renderList();
+  saveToStorage();
 });
 
 function showTooltip(e, a) {
@@ -1056,6 +1060,7 @@ document.getElementById('btn-modal-save').addEventListener('click', () => {
   closeModal();
   renderList();
   updatePins();
+  saveToStorage();
 });
 
 // ========== LIST ==========
@@ -1142,6 +1147,7 @@ function deleteAnnotation(id) {
   if (state.selectedId === id) state.selectedId = null;
   renderList();
   updatePins();
+  saveToStorage();
 }
 
 // ========== FILTER ==========
@@ -1184,6 +1190,7 @@ document.getElementById('json-input').addEventListener('change', e => {
       renderList();
       updatePins();
       redrawStrokes();
+      saveToStorage();
       alert(`${state.annotations.length}件のメモを読み込みました`);
     } catch { alert('JSONファイルの読み込みに失敗しました'); }
   };
@@ -1228,9 +1235,54 @@ document.addEventListener('keydown', e => {
 const ro = new ResizeObserver(() => resizeCanvas());
 ro.observe(canvasArea);
 
+// ========== LOCAL STORAGE ==========
+const LS_KEY = 'housedesigner_v1';
+
+// 保存インジケーター
+const saveIndicator = document.createElement('div');
+saveIndicator.style.cssText = 'position:fixed;bottom:56px;left:16px;background:#2c2825;border:1px solid #4a4238;color:#b8a898;font-size:11px;padding:4px 10px;border-radius:6px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;';
+saveIndicator.textContent = '✓ 自動保存済み';
+document.body.appendChild(saveIndicator);
+let _saveTimer;
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      annotations: state.annotations,
+      nextId:      state.nextId,
+      strokes:     state.strokes,
+      crop:        state.crop,
+      imageScale:  state.imageScale,
+      offsetX:     state.offsetX,
+      offsetY:     state.offsetY,
+    }));
+    saveIndicator.style.opacity = '1';
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => saveIndicator.style.opacity = '0', 1500);
+  } catch(e) { console.warn('localStorage保存失敗:', e); }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    state.annotations = data.annotations || [];
+    state.nextId      = data.nextId || 1;
+    state.strokes     = data.strokes || [];
+    state.crop        = data.crop || null;
+    if (data.imageScale) state.imageScale = data.imageScale;
+    if (data.offsetX !== undefined) state.offsetX = data.offsetX;
+    if (data.offsetY !== undefined) state.offsetY = data.offsetY;
+    if (state.crop) { btnCropClear.style.display = ''; btnCropSave.style.display = ''; }
+  } catch(e) { console.warn('localStorage読み込み失敗:', e); }
+}
+
 // ========== INIT ==========
+loadFromStorage();
 resizeCanvas();
 renderList();
+updateZoomLabel();
 </script>
 
 <style media="print">
