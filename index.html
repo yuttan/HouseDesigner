@@ -125,6 +125,12 @@
   #pdf-loading.show { display: flex; }
   .spinner { width: 36px; height: 36px; border: 3px solid #4a4238; border-top-color: #c8956c; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 描画ツールバー */
+  #draw-toolbar { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; align-items: center; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 6px 12px; z-index: 30; flex-wrap: wrap; }
+  .draw-tool-btn, .draw-width-btn { background: none; border: 1px solid #4a4238; color: #e8e2d9; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .draw-tool-btn:hover, .draw-width-btn:hover { background: #4a4238; }
+  .draw-tool-btn.active, .draw-width-btn.active { background: #c8956c; border-color: #c8956c; color: #fff; }
 </style>
 </head>
 <body>
@@ -161,6 +167,7 @@
   <!-- キャンバスエリア -->
   <div class="canvas-area" id="canvas-area">
     <canvas id="floorplan-canvas"></canvas>
+    <canvas id="draw-canvas" style="position:absolute;top:0;left:0;pointer-events:none;"></canvas>
 
     <!-- PDFローディング -->
     <div id="pdf-loading">
@@ -186,6 +193,22 @@
       <button class="mode-btn" data-mode="pan" id="mode-pan">✋ パン</button>
       <button class="mode-btn" data-mode="select" id="mode-select">↖ 選択</button>
       <button class="mode-btn" data-mode="crop" id="mode-crop">✂ クロップ</button>
+      <button class="mode-btn" data-mode="draw" id="mode-draw">✏️ 描画</button>
+    </div>
+
+    <!-- 描画ツールバー -->
+    <div id="draw-toolbar">
+      <button class="draw-tool-btn active" data-tool="pen" title="ペン">✏️</button>
+      <button class="draw-tool-btn" data-tool="eraser" title="消しゴム">🧹</button>
+      <div style="width:1px;height:24px;background:#4a4238;margin:0 4px;"></div>
+      <input type="color" id="draw-color" value="#c8956c" title="色" style="width:28px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:0;">
+      <div style="width:1px;height:24px;background:#4a4238;margin:0 4px;"></div>
+      <button class="draw-width-btn active" data-w="2" title="細" style="font-size:10px;">━</button>
+      <button class="draw-width-btn" data-w="5" title="中" style="font-size:13px;">━</button>
+      <button class="draw-width-btn" data-w="10" title="太" style="font-size:18px;">━</button>
+      <div style="width:1px;height:24px;background:#4a4238;margin:0 4px;"></div>
+      <button id="btn-draw-undo" style="background:none;border:1px solid #4a4238;color:#e8e2d9;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:13px;" title="1つ戻す">↩ 戻す</button>
+      <button id="btn-draw-clear" style="background:none;border:1px solid #c8956c;color:#c8956c;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:13px;" title="全消去">🗑 全消去</button>
     </div>
 
     <!-- クロップ確定バー -->
@@ -315,6 +338,12 @@ const state = {
   cropSelecting: false,
   cropStart: null,      // { x, y } スクリーン座標
   cropRect: null,       // { x, y, w, h } スクリーン座標（選択中）
+  // 描画
+  strokes: [],          // 確定済みストローク
+  currentStroke: null,  // 描画中ストローク { color, width, eraser, points:[{x,y}] }
+  drawColor: '#c8956c',
+  drawWidth: 2,
+  drawMode: 'pen',      // 'pen' | 'eraser'
 };
 
 const CAT_INFO = {
@@ -343,11 +372,16 @@ const cropConfirmBar = document.getElementById('crop-confirm-bar');
 const btnCropClear   = document.getElementById('btn-crop-clear');
 const btnCropSave    = document.getElementById('btn-crop-save');
 const pdfLoading     = document.getElementById('pdf-loading');
+const drawCanvas     = document.getElementById('draw-canvas');
+const drawCtx        = drawCanvas.getContext('2d');
+const drawToolbar    = document.getElementById('draw-toolbar');
 
 // ========== CANVAS ==========
 function resizeCanvas() {
   canvas.width  = canvasArea.clientWidth;
   canvas.height = canvasArea.clientHeight;
+  drawCanvas.width  = canvasArea.clientWidth;
+  drawCanvas.height = canvasArea.clientHeight;
   redraw();
 }
 
@@ -388,6 +422,33 @@ function redraw() {
   }
 
   updatePins();
+  redrawStrokes();
+}
+
+function redrawStrokes() {
+  drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  for (const stroke of state.strokes) {
+    if (stroke.points.length < 2) continue;
+    drawCtx.save();
+    drawCtx.lineWidth   = stroke.width * state.imageScale;
+    drawCtx.lineCap     = 'round';
+    drawCtx.lineJoin    = 'round';
+    if (stroke.eraser) {
+      drawCtx.globalCompositeOperation = 'destination-out';
+      drawCtx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      drawCtx.strokeStyle = stroke.color;
+    }
+    drawCtx.beginPath();
+    const p0 = imageToScreen(stroke.points[0].x, stroke.points[0].y);
+    drawCtx.moveTo(p0.x, p0.y);
+    for (let i = 1; i < stroke.points.length; i++) {
+      const p = imageToScreen(stroke.points[i].x, stroke.points[i].y);
+      drawCtx.lineTo(p.x, p.y);
+    }
+    drawCtx.stroke();
+    drawCtx.restore();
+  }
 }
 
 function loadImage(src) {
@@ -580,6 +641,17 @@ canvas.addEventListener('mousedown', e => {
     return;
   }
 
+  if (state.mode === 'draw' && state.image) {
+    const img = screenToImage(sx, sy);
+    state.currentStroke = {
+      color: state.drawColor,
+      width: state.drawWidth,
+      eraser: state.drawMode === 'eraser',
+      points: [img],
+    };
+    return;
+  }
+
   if (state.mode === 'crop' && state.image) {
     state.cropSelecting = true;
     state.cropStart = { x: sx, y: sy };
@@ -608,6 +680,30 @@ canvas.addEventListener('mousemove', e => {
   const sx = e.clientX - rect.left;
   const sy = e.clientY - rect.top;
 
+  if (state.currentStroke) {
+    const img = screenToImage(sx, sy);
+    state.currentStroke.points.push(img);
+    const pts = state.currentStroke.points;
+    drawCtx.save();
+    drawCtx.lineWidth  = state.currentStroke.width * state.imageScale;
+    drawCtx.lineCap    = 'round';
+    drawCtx.lineJoin   = 'round';
+    if (state.currentStroke.eraser) {
+      drawCtx.globalCompositeOperation = 'destination-out';
+      drawCtx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      drawCtx.strokeStyle = state.currentStroke.color;
+    }
+    drawCtx.beginPath();
+    const prev = imageToScreen(pts[pts.length - 2].x, pts[pts.length - 2].y);
+    const curr = imageToScreen(pts[pts.length - 1].x, pts[pts.length - 1].y);
+    drawCtx.moveTo(prev.x, prev.y);
+    drawCtx.lineTo(curr.x, curr.y);
+    drawCtx.stroke();
+    drawCtx.restore();
+    return;
+  }
+
   if (panStart) {
     state.offsetX = panStart.ox + (sx - panStart.sx);
     state.offsetY = panStart.oy + (sy - panStart.sy);
@@ -628,6 +724,12 @@ canvas.addEventListener('mousemove', e => {
 });
 
 canvas.addEventListener('mouseup', e => {
+  if (e.button === 0 && state.currentStroke) {
+    if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
+    state.currentStroke = null;
+    return;
+  }
+
   if (e.button === 1 || e.button === 0) {
     panStart = null;
     updateCursor();
@@ -719,6 +821,9 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     } else {
       canvas.style.cursor = 'crosshair';
     }
+    // 描画ツールバー表示切替
+    drawToolbar.style.display = state.mode === 'draw' ? 'flex' : 'none';
+    canvas.style.cursor = state.mode === 'draw' ? 'crosshair' : (state.mode === 'pan' ? 'grab' : 'crosshair');
     // クロップモード以外に切り替えたら選択中の矩形をクリア
     if (state.mode !== 'crop') {
       state.cropSelecting = false;
@@ -727,6 +832,28 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
       redraw();
     }
   });
+});
+
+// ========== 描画ツールバー ==========
+document.querySelectorAll('.draw-tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.draw-tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.drawMode = btn.dataset.tool;
+    canvas.style.cursor = state.drawMode === 'eraser' ? 'cell' : 'crosshair';
+  });
+});
+document.querySelectorAll('.draw-width-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.draw-width-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.drawWidth = +btn.dataset.w;
+  });
+});
+document.getElementById('draw-color').addEventListener('input', e => { state.drawColor = e.target.value; });
+document.getElementById('btn-draw-undo').addEventListener('click', () => { state.strokes.pop(); redrawStrokes(); });
+document.getElementById('btn-draw-clear').addEventListener('click', () => {
+  if (confirm('描画を全て消去しますか？')) { state.strokes = []; redrawStrokes(); }
 });
 
 // ========== FILE LOAD ==========
@@ -1030,7 +1157,7 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 
 // ========== EXPORT / IMPORT ==========
 document.getElementById('btn-export').addEventListener('click', () => {
-  const data = { version: 2, annotations: state.annotations, nextId: state.nextId, imageScale: state.imageScale, offsetX: state.offsetX, offsetY: state.offsetY, crop: state.crop };
+  const data = { version: 3, annotations: state.annotations, nextId: state.nextId, imageScale: state.imageScale, offsetX: state.offsetX, offsetY: state.offsetY, crop: state.crop, strokes: state.strokes };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1052,9 +1179,11 @@ document.getElementById('json-input').addEventListener('change', e => {
       if (data.offsetY !== undefined) state.offsetY = data.offsetY;
       if (data.crop) { state.crop = data.crop; btnCropClear.style.display = ''; btnCropSave.style.display = ''; }
       else { state.crop = null; btnCropClear.style.display = 'none'; btnCropSave.style.display = 'none'; }
+      state.strokes = data.strokes || [];
       updateZoomLabel();
       renderList();
       updatePins();
+      redrawStrokes();
       alert(`${state.annotations.length}件のメモを読み込みました`);
     } catch { alert('JSONファイルの読み込みに失敗しました'); }
   };
@@ -1072,6 +1201,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'h') document.getElementById('mode-pan').click();
   if (e.key === 's') document.getElementById('mode-select').click();
   if (e.key === 'c') document.getElementById('mode-crop').click();
+  if (e.key === 'd') document.getElementById('mode-draw').click();
   if (e.key === '+' || e.key === '=') zoom(1.2);
   if (e.key === '-') zoom(1/1.2);
   if (e.key === '0') { if (state.crop) fitCrop(); else fitImage(); redraw(); }
