@@ -214,6 +214,7 @@
       <div style="height:1px;background:#4a4238;margin:2px 0;"></div>
       <button class="btn btn-secondary btn-sm" id="btn-print">🖨 印刷/PDF</button>
       <div style="height:1px;background:#4a4238;margin:2px 0;"></div>
+      <button class="btn btn-secondary btn-sm" id="btn-app-settings">🎨 アプリ設定</button>
       <button class="btn btn-secondary btn-sm" id="btn-help">📖 使い方</button>
     </div>
   </div>
@@ -476,6 +477,32 @@
   </div>
 </div>
 
+<!-- アプリ設定モーダル -->
+<div class="modal-overlay hidden" id="app-settings-modal">
+  <div class="modal" style="max-width:360px;">
+    <h3>🎨 アプリ設定</h3>
+    <div class="form-group">
+      <label>アクセントカラー</label>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <input type="color" id="setting-accent" class="form-control" style="width:52px;height:40px;padding:2px;cursor:pointer;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="accent-preset" data-color="#c8956c" style="width:24px;height:24px;border-radius:50%;background:#c8956c;border:2px solid transparent;cursor:pointer;" title="デフォルト（ウォームベージュ）"></button>
+          <button class="accent-preset" data-color="#4f454f" style="width:24px;height:24px;border-radius:50%;background:#4f454f;border:2px solid transparent;cursor:pointer;" title="ダークパープル"></button>
+          <button class="accent-preset" data-color="#4a90e2" style="width:24px;height:24px;border-radius:50%;background:#4a90e2;border:2px solid transparent;cursor:pointer;" title="ブルー"></button>
+          <button class="accent-preset" data-color="#7ed321" style="width:24px;height:24px;border-radius:50%;background:#7ed321;border:2px solid transparent;cursor:pointer;" title="グリーン"></button>
+          <button class="accent-preset" data-color="#e94560" style="width:24px;height:24px;border-radius:50%;background:#e94560;border:2px solid transparent;cursor:pointer;" title="レッド"></button>
+          <button class="accent-preset" data-color="#50e3c2" style="width:24px;height:24px;border-radius:50%;background:#50e3c2;border:2px solid transparent;cursor:pointer;" title="ティール"></button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btn-app-settings-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="btn-app-settings-save">適用</button>
+    </div>
+  </div>
+</div>
+
+<style id="accent-style"></style>
 <div class="tooltip" id="tooltip"></div>
 
 <script>
@@ -511,17 +538,33 @@ const state = {
   drawColor: '#c8956c',
   drawWidth: 2,
   drawMode: 'pen',      // 'pen' | 'eraser'
+  catCounters: { wall: 0, floor: 0, ceiling: 0, light: 0, door: 0, window: 0, other: 0 },
+  accentColor: '#c8956c',
 };
 
 const CAT_INFO = {
-  wall:    { label: '壁',    icon: '🧱', color: '#4a90e2' },
-  floor:   { label: '床',    icon: '🪵', color: '#7ed321' },
-  ceiling: { label: '天井',  icon: '⬆',  color: '#bd10e0' },
-  light:   { label: '照明',  icon: '💡', color: '#f5a623' },
-  door:    { label: 'ドア',  icon: '🚪', color: '#d0021b' },
-  window:  { label: '窓',    icon: '🪟', color: '#50e3c2' },
-  other:   { label: 'その他',icon: '📌', color: '#9b9b9b' },
+  wall:    { label: '壁',    icon: '🧱', color: '#4a90e2', prefix: '壁' },
+  floor:   { label: '床',    icon: '🪵', color: '#7ed321', prefix: '床' },
+  ceiling: { label: '天井',  icon: '⬆',  color: '#bd10e0', prefix: '天' },
+  light:   { label: '照明',  icon: '💡', color: '#f5a623', prefix: '灯' },
+  door:    { label: 'ドア',  icon: '🚪', color: '#d0021b', prefix: '扉' },
+  window:  { label: '窓',    icon: '🪟', color: '#50e3c2', prefix: '窓' },
+  other:   { label: 'その他',icon: '📌', color: '#9b9b9b', prefix: '他' },
 };
+
+function recomputeCatCounters() {
+  const c = { wall: 0, floor: 0, ceiling: 0, light: 0, door: 0, window: 0, other: 0 };
+  for (const a of state.annotations) {
+    if (!a.pinId) continue;
+    for (const [cat, info] of Object.entries(CAT_INFO)) {
+      if (a.pinId.startsWith(info.prefix)) {
+        const n = parseInt(a.pinId.slice(info.prefix.length));
+        if (!isNaN(n)) c[cat] = Math.max(c[cat], n);
+      }
+    }
+  }
+  state.catCounters = c;
+}
 
 // ========== DOM ==========
 const canvas       = document.getElementById('floorplan-canvas');
@@ -599,7 +642,7 @@ function redraw() {
     ctx.fillRect(0, sc.y, sc.x, se.y - sc.y);
     ctx.fillRect(se.x, sc.y, cw - se.x, se.y - sc.y);
     ctx.fillRect(0, se.y, cw, ch - se.y);
-    ctx.strokeStyle = '#c8956c';
+    ctx.strokeStyle = state.accentColor;
     ctx.lineWidth = 2;
     ctx.strokeRect(sc.x, sc.y, se.x - sc.x, se.y - sc.y);
   }
@@ -607,9 +650,9 @@ function redraw() {
   // クロップ選択中の矩形
   if (state.cropSelecting && state.cropRect) {
     const r = state.cropRect;
-    ctx.fillStyle = 'rgba(200,149,108,0.15)';
+    ctx.fillStyle = hexToRgba(state.accentColor, 0.15);
     ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = '#c8956c';
+    ctx.strokeStyle = state.accentColor;
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 3]);
     ctx.strokeRect(r.x, r.y, r.w, r.h);
@@ -1357,7 +1400,7 @@ function updatePins() {
     const ci = CAT_INFO[a.cat] || CAT_INFO.other;
     pin.innerHTML = `
       <div class="pin-icon" style="background:${ci.color}"><span>${ci.icon}</span></div>
-      <div class="pin-label">${a.room || a.material || ci.label}</div>
+      <div class="pin-label">${a.pinId ? a.pinId : (a.room || a.material || ci.label)}</div>
     `;
 
     // ピンドラッグ開始
@@ -1437,7 +1480,7 @@ document.addEventListener('touchend', e => {
 
 function showTooltip(e, a) {
   const ci = CAT_INFO[a.cat] || CAT_INFO.other;
-  let html = `<strong>${ci.icon} ${ci.label}</strong>`;
+  let html = `<strong>${ci.icon} ${a.pinId ? `[${a.pinId}] ` : ''}${ci.label}</strong>`;
   if (a.room)     html += `<br>${a.room}`;
   if (a.material) html += `<br>${a.material}`;
   if (a.maker)    html += `<br>${a.maker}`;
@@ -1503,7 +1546,9 @@ document.getElementById('btn-modal-save').addEventListener('click', () => {
     const a = state.annotations.find(x => x.id === state.editingId);
     if (a) Object.assign(a, { cat, room, material, maker, color, note, lightType });
   } else {
-    state.annotations.push({ id: state.nextId++, x: state.pendingX, y: state.pendingY, cat, room, material, maker, color, note, lightType });
+    state.catCounters[cat] = (state.catCounters[cat] || 0) + 1;
+    const pinId = (CAT_INFO[cat]?.prefix || '他') + state.catCounters[cat];
+    state.annotations.push({ id: state.nextId++, pinId, x: state.pendingX, y: state.pendingY, cat, room, material, maker, color, note, lightType });
   }
   closeModal();
   renderList();
@@ -1546,7 +1591,7 @@ function renderList() {
       <button class="card-del" data-id="${a.id}" title="削除">✕</button>
       <div class="card-header">
         <div class="cat-badge" style="background:${ci.color}"></div>
-        <div class="card-title">${ci.icon} ${a.room || '(場所未設定)'}</div>
+        <div class="card-title">${a.pinId ? `<span style="background:${ci.color};color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:700;margin-right:4px;">${a.pinId}</span>` : ''}${ci.icon} ${a.room || '(場所未設定)'}</div>
         <div class="card-room" style="color:${ci.color}">${ci.label}</div>
       </div>
       <div class="card-body">${lines.join('<br>') || '<span style="color:#555">詳細未入力</span>'}</div>
@@ -1634,6 +1679,7 @@ document.getElementById('json-input').addEventListener('change', e => {
       if (data.crop) { state.crop = data.crop; btnCropClear.style.display = ''; btnCropSave.style.display = ''; }
       else { state.crop = null; btnCropClear.style.display = 'none'; btnCropSave.style.display = 'none'; }
       state.strokes = data.strokes || [];
+      recomputeCatCounters();
       updateZoomLabel();
       renderList();
       updatePins();
@@ -1725,6 +1771,7 @@ async function gistLoad() {
     if (data.crop) { state.crop = data.crop; btnCropClear.style.display = ''; btnCropSave.style.display = ''; }
     else { state.crop = null; btnCropClear.style.display = 'none'; btnCropSave.style.display = 'none'; }
     state.strokes = data.strokes || [];
+    recomputeCatCounters();
     updateZoomLabel(); renderList(); updatePins(); redrawStrokes();
     saveToStorage();
     alert(`✅ Gistから読み込みました（${state.annotations.length}件のメモ）`);
@@ -1850,11 +1897,98 @@ function loadFromStorage() {
     if (data.offsetX !== undefined) state.offsetX = data.offsetX;
     if (data.offsetY !== undefined) state.offsetY = data.offsetY;
     if (state.crop) { btnCropClear.style.display = ''; btnCropSave.style.display = ''; }
+    recomputeCatCounters();
   } catch(e) { console.warn('localStorage読み込み失敗:', e); }
 }
 
+// ========== ACCENT COLOR ==========
+const ACCENT_LS_KEY = 'housedesigner_accent';
+
+function hexToRgba(hex, alpha) {
+  const n = parseInt(hex.replace('#',''), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
+}
+function shadeHex(hex, amt) {
+  const n = parseInt(hex.replace('#',''), 16);
+  const r = Math.max(0, Math.min(255, ((n>>16)&255) + amt));
+  const g = Math.max(0, Math.min(255, ((n>>8)&255)  + amt));
+  const b = Math.max(0, Math.min(255, (n&255)        + amt));
+  return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function applyAccent(color) {
+  state.accentColor = color;
+  const dark = shadeHex(color, -30);
+  const accentStyle = document.getElementById('accent-style');
+  accentStyle.textContent = `
+    .btn-primary { background: ${color} !important; }
+    .btn-primary:hover { background: ${dark} !important; }
+    .btn-secondary { border-color: ${color} !important; }
+    header h1 { color: ${color} !important; }
+    .mode-btn.active { background: ${color} !important; }
+    .annotation-card:hover { border-color: ${color} !important; }
+    .annotation-card.selected { border-color: ${color} !important; background: #2a2018 !important; }
+    .form-control:focus { border-color: ${color} !important; }
+    .cat-opt.active { border-color: rgba(255,255,255,0.5) !important; }
+    .draw-tool-btn.active, .draw-width-btn.active { background: ${color} !important; border-color: ${color} !important; }
+    #btn-sidebar-toggle { background: ${color} !important; }
+    #btn-sidebar-toggle:hover { background: ${dark} !important; }
+    .canvas-area.drag-over { outline-color: ${color} !important; }
+    .tooltip { border-color: ${color} !important; }
+    .modal h3 { color: ${color} !important; }
+    #page-selector button { border-color: ${color} !important; }
+    #btn-draw-clear { border-color: ${color} !important; color: ${color} !important; }
+    .zoom-label { border-color: #4a4238 !important; }
+    .accent-preset[data-color="${color}"] { border-color: #fff !important; }
+  `;
+}
+
+const btnAppSettings = document.getElementById('btn-app-settings');
+const appSettingsModal = document.getElementById('app-settings-modal');
+const settingAccentInput = document.getElementById('setting-accent');
+
+btnAppSettings.addEventListener('click', () => {
+  settingAccentInput.value = state.accentColor;
+  document.querySelectorAll('.accent-preset').forEach(b => {
+    b.style.borderColor = b.dataset.color === state.accentColor ? '#fff' : 'transparent';
+  });
+  appSettingsModal.classList.remove('hidden');
+  document.getElementById('header-menu').classList.remove('open');
+});
+
+document.getElementById('btn-app-settings-cancel').addEventListener('click', () => {
+  appSettingsModal.classList.add('hidden');
+});
+appSettingsModal.addEventListener('click', e => { if (e.target === appSettingsModal) appSettingsModal.classList.add('hidden'); });
+
+settingAccentInput.addEventListener('input', e => {
+  document.querySelectorAll('.accent-preset').forEach(b => {
+    b.style.borderColor = b.dataset.color === e.target.value ? '#fff' : 'transparent';
+  });
+});
+
+document.querySelectorAll('.accent-preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    settingAccentInput.value = btn.dataset.color;
+    document.querySelectorAll('.accent-preset').forEach(b => {
+      b.style.borderColor = b === btn ? '#fff' : 'transparent';
+    });
+  });
+});
+
+document.getElementById('btn-app-settings-save').addEventListener('click', () => {
+  const color = settingAccentInput.value;
+  applyAccent(color);
+  localStorage.setItem(ACCENT_LS_KEY, color);
+  appSettingsModal.classList.add('hidden');
+  redraw();
+});
+
 // ========== INIT ==========
 loadFromStorage();
+const savedAccent = localStorage.getItem(ACCENT_LS_KEY) || '#c8956c';
+state.accentColor = savedAccent;
+applyAccent(savedAccent);
 resizeCanvas();
 renderList();
 updateZoomLabel();
