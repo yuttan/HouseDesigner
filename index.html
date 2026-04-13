@@ -159,6 +159,9 @@
       読み込み (JSON)
       <input type="file" id="json-input" accept=".json" style="display:none">
     </label>
+    <button class="btn btn-secondary" id="btn-gist-save" title="GitHub Gistに現在のデータを保存">☁ Gist保存</button>
+    <button class="btn btn-secondary" id="btn-gist-load" title="GitHub GistからデータをロードするにはGist IDが必要">☁ Gist読込</button>
+    <button class="btn btn-secondary" id="btn-gist-settings" title="GitHub Gist設定">⚙ Gist設定</button>
     <button class="btn btn-secondary" id="btn-print">印刷/PDF</button>
   </div>
 </header>
@@ -1198,6 +1201,98 @@ document.getElementById('json-input').addEventListener('change', e => {
   e.target.value = '';
 });
 
+// ========== GITHUB GIST ==========
+const GIST_LS_KEY = 'housedesigner_gist';
+function loadGistSettings() {
+  try {
+    const raw = localStorage.getItem(GIST_LS_KEY);
+    return raw ? JSON.parse(raw) : { token: '', gistId: '', desc: '間取りデザインメモ' };
+  } catch { return { token: '', gistId: '', desc: '間取りデザインメモ' }; }
+}
+function saveGistSettings(s) {
+  localStorage.setItem(GIST_LS_KEY, JSON.stringify(s));
+}
+
+document.getElementById('btn-gist-settings').addEventListener('click', () => {
+  const s = loadGistSettings();
+  document.getElementById('gist-token').value = s.token;
+  document.getElementById('gist-id').value = s.gistId;
+  document.getElementById('gist-desc').value = s.desc;
+  document.getElementById('gist-modal').classList.remove('hidden');
+});
+document.getElementById('btn-gist-modal-cancel').addEventListener('click', () => {
+  document.getElementById('gist-modal').classList.add('hidden');
+});
+document.getElementById('btn-gist-modal-save').addEventListener('click', () => {
+  saveGistSettings({
+    token: document.getElementById('gist-token').value.trim(),
+    gistId: document.getElementById('gist-id').value.trim(),
+    desc: document.getElementById('gist-desc').value.trim() || '間取りデザインメモ',
+  });
+  document.getElementById('gist-modal').classList.add('hidden');
+});
+
+async function gistSave() {
+  const s = loadGistSettings();
+  if (!s.token) { alert('⚙ Gist設定でGitHub Personal Access Tokenを設定してください'); return; }
+  const data = { version: 3, annotations: state.annotations, nextId: state.nextId, imageScale: state.imageScale, offsetX: state.offsetX, offsetY: state.offsetY, crop: state.crop, strokes: state.strokes };
+  const payload = { description: s.desc, public: false, files: { 'housedesigner.json': { content: JSON.stringify(data, null, 2) } } };
+  const btnSave = document.getElementById('btn-gist-save');
+  try {
+    btnSave.textContent = '⏳ 保存中…'; btnSave.disabled = true;
+    const url = s.gistId ? `https://api.github.com/gists/${s.gistId}` : 'https://api.github.com/gists';
+    const method = s.gistId ? 'PATCH' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Authorization': `token ${s.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || res.statusText);
+    if (!s.gistId) saveGistSettings({ ...s, gistId: json.id });
+    alert(`✅ Gistに保存しました\nID: ${json.id}\n\nこのIDを他の端末の「⚙ Gist設定」に入力すると読み込めます`);
+  } catch (err) {
+    alert('Gist保存エラー: ' + err.message);
+  } finally {
+    btnSave.textContent = '☁ Gist保存'; btnSave.disabled = false;
+  }
+}
+
+async function gistLoad() {
+  const s = loadGistSettings();
+  if (!s.gistId) {
+    const id = prompt('Gist IDを入力してください（Gist URLの末尾の英数字）:');
+    if (!id) return;
+    saveGistSettings({ ...s, gistId: id.trim() });
+    s.gistId = id.trim();
+  }
+  const btnLoad = document.getElementById('btn-gist-load');
+  try {
+    btnLoad.textContent = '⏳ 読込中…'; btnLoad.disabled = true;
+    const headers = s.token ? { 'Authorization': `token ${s.token}` } : {};
+    const res = await fetch(`https://api.github.com/gists/${s.gistId}`, { headers });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || res.statusText);
+    const fileContent = json.files['housedesigner.json']?.content;
+    if (!fileContent) throw new Error('housedesigner.json が見つかりません');
+    const data = JSON.parse(fileContent);
+    state.annotations = data.annotations || [];
+    state.nextId = data.nextId || (Math.max(0, ...state.annotations.map(a => a.id)) + 1);
+    if (data.imageScale) state.imageScale = data.imageScale;
+    if (data.offsetX !== undefined) state.offsetX = data.offsetX;
+    if (data.offsetY !== undefined) state.offsetY = data.offsetY;
+    if (data.crop) { state.crop = data.crop; btnCropClear.style.display = ''; btnCropSave.style.display = ''; }
+    else { state.crop = null; btnCropClear.style.display = 'none'; btnCropSave.style.display = 'none'; }
+    state.strokes = data.strokes || [];
+    updateZoomLabel(); renderList(); updatePins(); redrawStrokes();
+    saveToStorage();
+    alert(`✅ Gistから読み込みました（${state.annotations.length}件のメモ）`);
+  } catch (err) {
+    alert('Gist読込エラー: ' + err.message);
+  } finally {
+    btnLoad.textContent = '☁ Gist読込'; btnLoad.disabled = false;
+  }
+}
+
+document.getElementById('btn-gist-save').addEventListener('click', gistSave);
+document.getElementById('btn-gist-load').addEventListener('click', gistLoad);
+
 // ========== PRINT ==========
 document.getElementById('btn-print').addEventListener('click', () => window.print());
 
@@ -1284,6 +1379,30 @@ resizeCanvas();
 renderList();
 updateZoomLabel();
 </script>
+
+<!-- Gist設定モーダル -->
+<div class="modal-overlay hidden" id="gist-modal">
+  <div class="modal" style="max-width:440px;">
+    <h3>⚙ GitHub Gist 設定</h3>
+    <div class="form-group">
+      <label>Personal Access Token <span style="color:#6b5f54;font-size:11px;">（gist スコープが必要）</span></label>
+      <input type="password" id="gist-token" class="form-control" placeholder="ghp_xxxx...">
+    </div>
+    <div class="form-group">
+      <label>Gist ID <span style="color:#6b5f54;font-size:11px;">（新規作成なら空欄）</span></label>
+      <input type="text" id="gist-id" class="form-control" placeholder="既存Gistを更新する場合に入力">
+    </div>
+    <div class="form-group">
+      <label>Gist の説明</label>
+      <input type="text" id="gist-desc" class="form-control" placeholder="間取りデザインメモ">
+    </div>
+    <p style="font-size:11px;color:#8a7a6e;margin-bottom:16px;">※ Token はこの端末の localStorage にのみ保存されます。他の端末と共有されません。</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btn-gist-modal-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="btn-gist-modal-save">保存</button>
+    </div>
+  </div>
+</div>
 
 <style media="print">
   header, .mode-bar, .zoom-controls, .sidebar, .modal-overlay, #crop-confirm-bar { display: none !important; }
