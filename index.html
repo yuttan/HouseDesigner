@@ -203,6 +203,10 @@
     <div id="draw-toolbar">
       <button class="draw-tool-btn active" data-tool="pen" title="ペン">✏️</button>
       <button class="draw-tool-btn" data-tool="eraser" title="消しゴム">🧹</button>
+      <button class="draw-tool-btn" data-tool="line" title="直線">╱</button>
+      <button class="draw-tool-btn" data-tool="rect" title="四角">▭</button>
+      <button class="draw-tool-btn" data-tool="circle" title="丸">◯</button>
+      <button class="draw-tool-btn" data-tool="dot" title="点">●</button>
       <div style="width:1px;height:24px;background:#4a4238;margin:0 4px;"></div>
       <input type="color" id="draw-color" value="#c8956c" title="色" style="width:28px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:0;">
       <div style="width:1px;height:24px;background:#4a4238;margin:0 4px;"></div>
@@ -452,30 +456,66 @@ function redraw() {
   redrawStrokes();
 }
 
-function redrawStrokes() {
-  drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-  for (const stroke of state.strokes) {
-    if (stroke.points.length < 2) continue;
-    drawCtx.save();
-    drawCtx.lineWidth   = stroke.width * state.imageScale;
-    drawCtx.lineCap     = 'round';
-    drawCtx.lineJoin    = 'round';
-    if (stroke.eraser) {
-      drawCtx.globalCompositeOperation = 'destination-out';
-      drawCtx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-      drawCtx.strokeStyle = stroke.color;
-    }
-    drawCtx.beginPath();
+// strokeを描画するヘルパー。previewEnd は shape ツールのプレビュー用スクリーン座標 {x,y}
+function drawStroke(ctx, stroke, previewEnd) {
+  const tool = stroke.tool || 'pen';
+  ctx.save();
+  ctx.lineWidth = stroke.width * state.imageScale;
+  ctx.lineCap   = 'round';
+  ctx.lineJoin  = 'round';
+  if (stroke.eraser) {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.fillStyle   = 'rgba(0,0,0,1)';
+  } else {
+    ctx.strokeStyle = stroke.color;
+    ctx.fillStyle   = stroke.color;
+  }
+
+  if (tool === 'pen' || tool === 'eraser') {
+    if (stroke.points.length < 2) { ctx.restore(); return; }
+    ctx.beginPath();
     const p0 = imageToScreen(stroke.points[0].x, stroke.points[0].y);
-    drawCtx.moveTo(p0.x, p0.y);
+    ctx.moveTo(p0.x, p0.y);
     for (let i = 1; i < stroke.points.length; i++) {
       const p = imageToScreen(stroke.points[i].x, stroke.points[i].y);
-      drawCtx.lineTo(p.x, p.y);
+      ctx.lineTo(p.x, p.y);
     }
-    drawCtx.stroke();
-    drawCtx.restore();
+    ctx.stroke();
+  } else if (tool === 'line') {
+    const p0 = imageToScreen(stroke.points[0].x, stroke.points[0].y);
+    const p1 = previewEnd || imageToScreen(stroke.points[1].x, stroke.points[1].y);
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.stroke();
+  } else if (tool === 'rect') {
+    const p0 = imageToScreen(stroke.points[0].x, stroke.points[0].y);
+    const p1 = previewEnd || imageToScreen(stroke.points[1].x, stroke.points[1].y);
+    ctx.beginPath();
+    ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+  } else if (tool === 'circle') {
+    const p0 = imageToScreen(stroke.points[0].x, stroke.points[0].y);
+    const p1 = previewEnd || imageToScreen(stroke.points[1].x, stroke.points[1].y);
+    const cx = (p0.x + p1.x) / 2, cy = (p0.y + p1.y) / 2;
+    const rx = Math.abs(p1.x - p0.x) / 2, ry = Math.abs(p1.y - p0.y) / 2;
+    if (rx < 1 && ry < 1) { ctx.restore(); return; }
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (tool === 'dot') {
+    const p = imageToScreen(stroke.points[0].x, stroke.points[0].y);
+    const r = stroke.width * state.imageScale * 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
   }
+  ctx.restore();
+}
+
+function redrawStrokes() {
+  drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  for (const stroke of state.strokes) drawStroke(drawCtx, stroke);
 }
 
 function loadImage(src) {
@@ -671,8 +711,9 @@ canvas.addEventListener('mousedown', e => {
   if (state.mode === 'draw' && state.image) {
     const img = screenToImage(sx, sy);
     state.currentStroke = {
-      color: state.drawColor,
-      width: state.drawWidth,
+      tool:   state.drawMode,
+      color:  state.drawColor,
+      width:  state.drawWidth,
       eraser: state.drawMode === 'eraser',
       points: [img],
     };
@@ -708,26 +749,34 @@ canvas.addEventListener('mousemove', e => {
   const sy = e.clientY - rect.top;
 
   if (state.currentStroke) {
-    const img = screenToImage(sx, sy);
-    state.currentStroke.points.push(img);
-    const pts = state.currentStroke.points;
-    drawCtx.save();
-    drawCtx.lineWidth  = state.currentStroke.width * state.imageScale;
-    drawCtx.lineCap    = 'round';
-    drawCtx.lineJoin   = 'round';
-    if (state.currentStroke.eraser) {
-      drawCtx.globalCompositeOperation = 'destination-out';
-      drawCtx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-      drawCtx.strokeStyle = state.currentStroke.color;
+    const tool = state.currentStroke.tool || 'pen';
+    if (tool === 'pen' || tool === 'eraser') {
+      // ペン/消しゴム: 逐次描画
+      const img = screenToImage(sx, sy);
+      state.currentStroke.points.push(img);
+      const pts = state.currentStroke.points;
+      drawCtx.save();
+      drawCtx.lineWidth = state.currentStroke.width * state.imageScale;
+      drawCtx.lineCap   = 'round';
+      drawCtx.lineJoin  = 'round';
+      if (state.currentStroke.eraser) {
+        drawCtx.globalCompositeOperation = 'destination-out';
+        drawCtx.strokeStyle = 'rgba(0,0,0,1)';
+      } else {
+        drawCtx.strokeStyle = state.currentStroke.color;
+      }
+      drawCtx.beginPath();
+      const prev = imageToScreen(pts[pts.length - 2].x, pts[pts.length - 2].y);
+      const curr = imageToScreen(pts[pts.length - 1].x, pts[pts.length - 1].y);
+      drawCtx.moveTo(prev.x, prev.y);
+      drawCtx.lineTo(curr.x, curr.y);
+      drawCtx.stroke();
+      drawCtx.restore();
+    } else if (tool !== 'dot') {
+      // シェイプツール: 全再描画 + プレビュー
+      redrawStrokes();
+      drawStroke(drawCtx, state.currentStroke, { x: sx, y: sy });
     }
-    drawCtx.beginPath();
-    const prev = imageToScreen(pts[pts.length - 2].x, pts[pts.length - 2].y);
-    const curr = imageToScreen(pts[pts.length - 1].x, pts[pts.length - 1].y);
-    drawCtx.moveTo(prev.x, prev.y);
-    drawCtx.lineTo(curr.x, curr.y);
-    drawCtx.stroke();
-    drawCtx.restore();
     return;
   }
 
@@ -752,8 +801,20 @@ canvas.addEventListener('mousemove', e => {
 
 canvas.addEventListener('mouseup', e => {
   if (e.button === 0 && state.currentStroke) {
-    if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
+    const tool = state.currentStroke.tool || 'pen';
+    if (tool === 'dot') {
+      state.strokes.push(state.currentStroke);
+    } else if (tool === 'pen' || tool === 'eraser') {
+      if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
+    } else {
+      // line / rect / circle: 終点を確定
+      const r2 = canvas.getBoundingClientRect();
+      const ex = e.clientX - r2.left, ey = e.clientY - r2.top;
+      state.currentStroke.points.push(screenToImage(ex, ey));
+      if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
+    }
     state.currentStroke = null;
+    redrawStrokes();
     saveToStorage();
     return;
   }
