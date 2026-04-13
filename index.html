@@ -200,6 +200,8 @@
       <button class="btn btn-secondary btn-sm" id="btn-gist-settings">⚙ Gist設定</button>
       <div style="height:1px;background:#4a4238;margin:2px 0;"></div>
       <button class="btn btn-secondary btn-sm" id="btn-print">🖨 印刷/PDF</button>
+      <div style="height:1px;background:#4a4238;margin:2px 0;"></div>
+      <button class="btn btn-secondary btn-sm" id="btn-help">📖 使い方</button>
     </div>
   </div>
 </header>
@@ -356,6 +358,77 @@
 
 <!-- サイドバーフローティングトグル -->
 <button id="btn-sidebar-toggle" title="メモ一覧を開閉">📋</button>
+
+<!-- 使い方モーダル -->
+<div class="modal-overlay hidden" id="help-modal">
+  <div class="modal" style="max-width:520px;max-height:80vh;overflow-y:auto;">
+    <h3>📖 使い方</h3>
+    <div style="font-size:13px;line-height:1.8;color:#e8e2d9;">
+
+      <p style="font-weight:600;color:#c8956c;margin:12px 0 4px;">📂 図面の読み込み</p>
+      <ul style="margin:0 0 8px 16px;color:#b8a898;">
+        <li>「図面を開く」または画面へのドラッグ＆ドロップで読み込み</li>
+        <li>PNG / JPG / WEBP / PDF に対応</li>
+        <li>PDFは◀▶ボタンでページを切り替え</li>
+      </ul>
+
+      <p style="font-weight:600;color:#c8956c;margin:12px 0 4px;">🔍 ズーム・移動</p>
+      <ul style="margin:0 0 8px 16px;color:#b8a898;">
+        <li><b>ホイール</b> / <b>+−ボタン</b>：ズーム</li>
+        <li><b>✋ パンモード</b> または <b>Space+ドラッグ</b> / <b>中ボタンドラッグ</b>：移動</li>
+        <li><b>スマホ</b>：2本指ピンチでズーム、パンモードで1本指移動</li>
+        <li>⊙ ボタンで全体表示にリセット</li>
+      </ul>
+
+      <p style="font-weight:600;color:#c8956c;margin:12px 0 4px;">📍 ピンの追加・編集</p>
+      <ul style="margin:0 0 8px 16px;color:#b8a898;">
+        <li><b>📍 ピン追加モード</b>で図面をクリック（タップ）するとメモを追加</li>
+        <li>ピンをクリックで選択、ダブルクリックで編集</li>
+        <li>ピンをドラッグすると位置を変更できる</li>
+        <li>メモ一覧のカードをクリックでピンにジャンプ</li>
+        <li>選択中に Delete キーで削除</li>
+      </ul>
+
+      <p style="font-weight:600;color:#c8956c;margin:12px 0 4px;">✂ クロップ</p>
+      <ul style="margin:0 0 8px 16px;color:#b8a898;">
+        <li><b>✂ クロップモード</b>でドラッグして範囲を選択し「クロップ適用」</li>
+        <li>クロップ範囲を PNG として保存する「📷 画像を保存」も可能</li>
+        <li>「✂ クロップ中 ✕ 解除」でクロップを解除</li>
+      </ul>
+
+      <p style="font-weight:600;color:#c8956c;margin:12px 0 4px;">✏️ 描画</p>
+      <ul style="margin:0 0 8px 16px;color:#b8a898;">
+        <li><b>✏️ 描画モード</b>でフリーハンド・直線・四角・丸・点が描ける</li>
+        <li>色・太さを変更可能、消しゴムで消去</li>
+        <li>↩ 戻す で1ストローク取り消し</li>
+      </ul>
+
+      <p style="font-weight:600;color:#c8956c;margin:12px 0 4px;">💾 データの保存・共有</p>
+      <ul style="margin:0 0 8px 16px;color:#b8a898;">
+        <li>メモ・描画・クロップは<b>自動でブラウザに保存</b>（ページを閉じても保持）</li>
+        <li>「📤 書き出し (JSON)」でファイルに保存、「📥 読み込み (JSON)」で復元</li>
+        <li>「⚙ Gist設定」でGitHub Tokenを設定すると、<b>☁ Gist保存/読込</b>で複数端末間でデータを共有できる</li>
+      </ul>
+
+      <p style="font-weight:600;color:#c8956c;margin:12px 0 4px;">⌨️ キーボードショートカット</p>
+      <table style="font-size:12px;color:#b8a898;border-collapse:collapse;width:100%;">
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">P</kbd></td><td>📍 ピン追加モード</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">H</kbd></td><td>✋ パンモード</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">S</kbd></td><td>↖ 選択モード</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">C</kbd></td><td>✂ クロップモード</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">D</kbd></td><td>✏️ 描画モード</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">+</kbd> / <kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">-</kbd></td><td>ズームイン / アウト</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">0</kbd></td><td>全体表示リセット</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">Space</kbd></td><td>一時的にパンモード</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">Delete</kbd></td><td>選択中のピンを削除</td></tr>
+        <tr><td style="padding:2px 8px 2px 0;"><kbd style="background:#4a4238;padding:1px 5px;border-radius:3px;">Esc</kbd></td><td>選択解除 / モーダルを閉じる</td></tr>
+      </table>
+    </div>
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" id="btn-help-close">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <!-- Gist設定モーダル -->
 <div class="modal-overlay hidden" id="gist-modal">
@@ -1551,6 +1624,15 @@ async function gistLoad() {
 document.getElementById('btn-gist-save').addEventListener('click', gistSave);
 document.getElementById('btn-gist-load').addEventListener('click', gistLoad);
 
+// ========== HELP ==========
+document.getElementById('btn-help').addEventListener('click', () => {
+  document.getElementById('help-modal').classList.remove('hidden');
+  document.getElementById('header-menu').classList.remove('open');
+});
+document.getElementById('btn-help-close').addEventListener('click', () => {
+  document.getElementById('help-modal').classList.add('hidden');
+});
+
 // ========== HAMBURGER MENU ==========
 const btnMenu = document.getElementById('btn-menu');
 const headerMenu = document.getElementById('header-menu');
@@ -1593,7 +1675,9 @@ document.addEventListener('keydown', e => {
     if (confirm('選択中のメモを削除しますか？')) deleteAnnotation(state.selectedId);
   }
   if (e.key === 'Escape') {
-    if (state.cropSelecting || (state.cropRect && cropConfirmBar.style.display !== 'none')) {
+    if (!document.getElementById('help-modal').classList.contains('hidden')) {
+      document.getElementById('help-modal').classList.add('hidden');
+    } else if (state.cropSelecting || (state.cropRect && cropConfirmBar.style.display !== 'none')) {
       state.cropSelecting = false;
       state.cropRect = null;
       cropConfirmBar.style.display = 'none';
