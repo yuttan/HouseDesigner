@@ -130,6 +130,28 @@
   .sidebar { transition: width 0.2s; }
   .sidebar.collapsed { width: 0; overflow: hidden; border: none; }
 
+  /* フローティングメモトグルボタン */
+  #btn-sidebar-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #c8956c;
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.15s;
+  }
+  #btn-sidebar-toggle:hover { background: #b07d55; transform: scale(1.08); }
+
   /* PDFローディング */
   #pdf-loading { position: absolute; inset: 0; background: rgba(13,13,26,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 50; font-size: 14px; color: #b8a898; }
   #pdf-loading.show { display: flex; }
@@ -163,11 +185,8 @@
   <button class="btn btn-secondary" id="btn-crop-save" style="display:none; border-color:#7ed321; color:#7ed321;">📷 画像を保存</button>
   <button class="btn btn-secondary" id="btn-crop-clear" style="display:none; border-color:#f5a623; color:#f5a623;">✂ クロップ中 ✕ 解除</button>
 
-  <!-- メモ一覧トグル -->
-  <button class="btn btn-secondary" id="btn-sidebar-toggle" style="margin-left:auto;">📋 メモ</button>
-
   <!-- ハンバーガーメニュー -->
-  <div id="menu-wrap">
+  <div id="menu-wrap" style="margin-left:auto;">
     <button class="btn btn-secondary" id="btn-menu" title="メニュー">☰</button>
     <div id="header-menu">
       <button class="btn btn-secondary btn-sm" id="btn-export">📤 書き出し (JSON)</button>
@@ -334,6 +353,9 @@
     </div>
   </div>
 </div>
+
+<!-- サイドバーフローティングトグル -->
+<button id="btn-sidebar-toggle" title="メモ一覧を開閉">📋</button>
 
 <!-- Gist設定モーダル -->
 <div class="modal-overlay hidden" id="gist-modal">
@@ -1412,7 +1434,7 @@ const sidebar = document.querySelector('.sidebar');
 const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
 btnSidebarToggle.addEventListener('click', () => {
   sidebar.classList.toggle('collapsed');
-  btnSidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '📋 メモ ▶' : '📋 メモ';
+  btnSidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '📋';
   resizeCanvas();
 });
 
