@@ -751,20 +751,26 @@ function touchMid(t, rect) {
   };
 }
 
+let touchTapStart = null; // タップ判定用 { sx, sy }
+
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   if (e.touches.length === 2) {
     lastTouchDist = touchDist(e.touches);
     lastTouchMid  = touchMid(e.touches, canvas.getBoundingClientRect());
     touchPanStart = null;
+    touchTapStart = null;
   } else if (e.touches.length === 1) {
     const rect = canvas.getBoundingClientRect();
-    touchPanStart = {
-      sx: e.touches[0].clientX - rect.left,
-      sy: e.touches[0].clientY - rect.top,
-      ox: state.offsetX,
-      oy: state.offsetY,
-    };
+    const sx = e.touches[0].clientX - rect.left;
+    const sy = e.touches[0].clientY - rect.top;
+    // パンモードまたはSpace中のみ1本指パンを有効化
+    if (state.mode === 'pan' || spaceDown) {
+      touchPanStart = { sx, sy, ox: state.offsetX, oy: state.offsetY };
+    } else {
+      touchPanStart = null;
+      touchTapStart = { sx, sy }; // タップ開始を記録
+    }
     lastTouchDist = null;
   }
 }, { passive: false });
@@ -777,7 +783,6 @@ canvas.addEventListener('touchmove', e => {
     const mid  = touchMid(e.touches, rect);
     const factor = dist / lastTouchDist;
     zoom(factor, mid.x, mid.y);
-    // ピンチ中心の移動でパンも追従
     if (lastTouchMid) {
       state.offsetX += mid.x - lastTouchMid.x;
       state.offsetY += mid.y - lastTouchMid.y;
@@ -791,13 +796,36 @@ canvas.addEventListener('touchmove', e => {
     state.offsetX = touchPanStart.ox + (sx - touchPanStart.sx);
     state.offsetY = touchPanStart.oy + (sy - touchPanStart.sy);
     redraw();
+  } else if (touchTapStart) {
+    // 少し動いたらタップ判定を無効に
+    const sx = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+    const sy = e.touches[0].clientY - canvas.getBoundingClientRect().top;
+    if (Math.hypot(sx - touchTapStart.sx, sy - touchTapStart.sy) > 8) touchTapStart = null;
   }
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
   if (e.touches.length < 2) { lastTouchDist = null; lastTouchMid = null; }
-  if (e.touches.length === 0) { touchPanStart = null; }
+  if (e.touches.length === 0) {
+    touchPanStart = null;
+    // タップとして処理
+    if (touchTapStart && state.image) {
+      const { sx, sy } = touchTapStart;
+      if (state.mode === 'pin') {
+        const img = screenToImage(sx, sy);
+        if (img.x >= 0 && img.y >= 0 && img.x <= state.image.width && img.y <= state.image.height) {
+          if (!state.crop || (img.x >= state.crop.x && img.x <= state.crop.x + state.crop.w &&
+              img.y >= state.crop.y && img.y <= state.crop.y + state.crop.h)) {
+            state.pendingX = img.x;
+            state.pendingY = img.y;
+            openModal(null);
+          }
+        }
+      }
+    }
+    touchTapStart = null;
+  }
 }, { passive: false });
 
 // ========== PAN & CLICK ==========
@@ -1162,54 +1190,62 @@ function updatePins() {
     pin.addEventListener('dblclick', e => { e.stopPropagation(); openModal(a.id); });
     pin.addEventListener('mouseenter', e => { if (!pinDrag) showTooltip(e, a); });
     pin.addEventListener('mouseleave', hideTooltip);
+
+    // タッチでピンをドラッグ
+    pin.addEventListener('touchstart', e => {
+      e.stopPropagation(); e.preventDefault();
+      const t = e.touches[0];
+      pinDrag = { id: a.id, startX: t.clientX, startY: t.clientY, moved: false };
+      pin.style.transition = 'none';
+      pin.style.zIndex = '50';
+      hideTooltip();
+      touchTapStart = null;
+    }, { passive: false });
     pinContainer.appendChild(pin);
   });
 }
 
 // ピンドラッグ中（document レベルで追跡）
-document.addEventListener('mousemove', e => {
+function onPinDragMove(clientX, clientY) {
   if (!pinDrag) return;
-  const dx = e.clientX - pinDrag.startX;
-  const dy = e.clientY - pinDrag.startY;
-  if (!pinDrag.moved && Math.hypot(dx, dy) < 4) return; // 微小な動きは無視
+  const dx = clientX - pinDrag.startX;
+  const dy = clientY - pinDrag.startY;
+  if (!pinDrag.moved && Math.hypot(dx, dy) < 4) return;
   pinDrag.moved = true;
-
   const pin = pinContainer.querySelector(`[data-id="${pinDrag.id}"]`);
   if (!pin) return;
   pin.classList.add('dragging');
-
   const rect = canvasArea.getBoundingClientRect();
-  const sx = e.clientX - rect.left;
-  const sy = e.clientY - rect.top;
-  pin.style.left = sx + 'px';
-  pin.style.top  = sy + 'px';
-});
-
-// ピンドラッグ終了 → 座標を確定
-document.addEventListener('mouseup', e => {
+  pin.style.left = (clientX - rect.left) + 'px';
+  pin.style.top  = (clientY - rect.top)  + 'px';
+}
+function onPinDragEnd(clientX, clientY) {
   if (!pinDrag || !pinDrag.moved) { pinDrag = null; return; }
-
   const rect = canvasArea.getBoundingClientRect();
-  const sx = e.clientX - rect.left;
-  const sy = e.clientY - rect.top;
-  const img = screenToImage(sx, sy);
-
-  // 画像の範囲内にクランプ
+  const img = screenToImage(clientX - rect.left, clientY - rect.top);
   if (state.image) {
     img.x = Math.max(0, Math.min(state.image.width,  img.x));
     img.y = Math.max(0, Math.min(state.image.height, img.y));
   }
-
   const a = state.annotations.find(x => x.id === pinDrag.id);
-  if (a) {
-    a.x = img.x;
-    a.y = img.y;
-  }
-
+  if (a) { a.x = img.x; a.y = img.y; }
   pinDrag = null;
   updatePins();
   renderList();
   saveToStorage();
+}
+
+document.addEventListener('mousemove', e => onPinDragMove(e.clientX, e.clientY));
+document.addEventListener('mouseup',   e => onPinDragEnd(e.clientX, e.clientY));
+document.addEventListener('touchmove', e => {
+  if (!pinDrag) return;
+  e.preventDefault();
+  onPinDragMove(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+document.addEventListener('touchend', e => {
+  if (!pinDrag) return;
+  const t = e.changedTouches[0];
+  onPinDragEnd(t.clientX, t.clientY);
 });
 
 function showTooltip(e, a) {
