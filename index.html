@@ -450,15 +450,27 @@ const drawToolbar    = document.getElementById('draw-toolbar');
 
 // ========== CANVAS ==========
 function resizeCanvas() {
-  canvas.width  = canvasArea.clientWidth;
-  canvas.height = canvasArea.clientHeight;
-  drawCanvas.width  = canvasArea.clientWidth;
-  drawCanvas.height = canvasArea.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvasArea.clientWidth;
+  const h = canvasArea.clientHeight;
+  // 物理ピクセルサイズ（高DPI対応）
+  canvas.width  = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  drawCanvas.width  = Math.round(w * dpr);
+  drawCanvas.height = Math.round(h * dpr);
+  drawCanvas.style.width  = w + 'px';
+  drawCanvas.style.height = h + 'px';
   redraw();
 }
 
 function redraw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const dpr = window.devicePixelRatio || 1;
+  const cw = canvasArea.clientWidth;
+  const ch = canvasArea.clientHeight;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // CSS座標系に統一
+  ctx.clearRect(0, 0, cw, ch);
   if (!state.image) return;
 
   ctx.save();
@@ -472,10 +484,10 @@ function redraw() {
     const sc = imageToScreen(state.crop.x, state.crop.y);
     const se = imageToScreen(state.crop.x + state.crop.w, state.crop.y + state.crop.h);
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, 0, canvas.width, sc.y);
+    ctx.fillRect(0, 0, cw, sc.y);
     ctx.fillRect(0, sc.y, sc.x, se.y - sc.y);
-    ctx.fillRect(se.x, sc.y, canvas.width - se.x, se.y - sc.y);
-    ctx.fillRect(0, se.y, canvas.width, canvas.height - se.y);
+    ctx.fillRect(se.x, sc.y, cw - se.x, se.y - sc.y);
+    ctx.fillRect(0, se.y, cw, ch - se.y);
     ctx.strokeStyle = '#c8956c';
     ctx.lineWidth = 2;
     ctx.strokeRect(sc.x, sc.y, se.x - sc.x, se.y - sc.y);
@@ -555,7 +567,9 @@ function drawStroke(ctx, stroke, previewEnd) {
 }
 
 function redrawStrokes() {
-  drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  const dpr = window.devicePixelRatio || 1;
+  drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawCtx.clearRect(0, 0, canvasArea.clientWidth, canvasArea.clientHeight);
   for (const stroke of state.strokes) drawStroke(drawCtx, stroke);
 }
 
@@ -687,8 +701,8 @@ document.getElementById('zoom-reset').addEventListener('click', () => {
 
 function zoom(factor, cx, cy) {
   if (!state.image) return;
-  cx = cx ?? canvas.width / 2;
-  cy = cy ?? canvas.height / 2;
+  cx = cx ?? canvasArea.clientWidth / 2;
+  cy = cy ?? canvasArea.clientHeight / 2;
   const before = screenToImage(cx, cy);
   state.imageScale = Math.max(0.05, Math.min(10, state.imageScale * factor));
   const after = imageToScreen(before.x, before.y);
@@ -1331,8 +1345,8 @@ function selectAnnotation(id) {
 function gotoAnnotation(id) {
   const a = state.annotations.find(x => x.id === id);
   if (!a || !state.image) return;
-  state.offsetX = canvas.width  / 2 - a.x * state.imageScale;
-  state.offsetY = canvas.height / 2 - a.y * state.imageScale;
+  state.offsetX = canvasArea.clientWidth  / 2 - a.x * state.imageScale;
+  state.offsetY = canvasArea.clientHeight / 2 - a.y * state.imageScale;
   selectAnnotation(id);
   redraw();
 }
