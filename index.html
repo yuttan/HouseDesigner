@@ -465,10 +465,26 @@ function resizeCanvas() {
   redraw();
 }
 
+function clampOffset() {
+  if (!state.image) return;
+  const cw = canvasArea.clientWidth;
+  const ch = canvasArea.clientHeight;
+  const margin = 80; // 最低限この px 分は画面内に残す
+  const rx = (state.crop ? state.offsetX + state.crop.x * state.imageScale : state.offsetX);
+  const ry = (state.crop ? state.offsetY + state.crop.y * state.imageScale : state.offsetY);
+  const rw = (state.crop ? state.crop.w : state.image.width)  * state.imageScale;
+  const rh = (state.crop ? state.crop.h : state.image.height) * state.imageScale;
+  if (rx + rw < margin)      state.offsetX += margin      - (rx + rw);
+  if (rx      > cw - margin) state.offsetX -= rx          - (cw - margin);
+  if (ry + rh < margin)      state.offsetY += margin      - (ry + rh);
+  if (ry      > ch - margin) state.offsetY -= ry          - (ch - margin);
+}
+
 function redraw() {
   const dpr = window.devicePixelRatio || 1;
   const cw = canvasArea.clientWidth;
   const ch = canvasArea.clientHeight;
+  clampOffset();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // CSS座標系に統一
   ctx.clearRect(0, 0, cw, ch);
   if (!state.image) return;
