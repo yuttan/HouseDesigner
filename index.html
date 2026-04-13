@@ -120,6 +120,16 @@
 
   .no-annotations { text-align: center; color: #6b5f54; font-size: 13px; padding: 32px 16px; }
 
+  /* ハンバーガーメニュー */
+  #menu-wrap { position: relative; }
+  #header-menu { position: absolute; top: calc(100% + 6px); right: 0; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 6px; z-index: 300; display: none; flex-direction: column; gap: 4px; min-width: 170px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  #header-menu.open { display: flex; }
+  #header-menu .btn, #header-menu label.btn { text-align: left; width: 100%; justify-content: flex-start; }
+
+  /* サイドバー折りたたみ */
+  .sidebar { transition: width 0.2s; }
+  .sidebar.collapsed { width: 0; overflow: hidden; border: none; }
+
   /* PDFローディング */
   #pdf-loading { position: absolute; inset: 0; background: rgba(13,13,26,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 50; font-size: 14px; color: #b8a898; }
   #pdf-loading.show { display: flex; }
@@ -153,16 +163,25 @@
   <button class="btn btn-secondary" id="btn-crop-save" style="display:none; border-color:#7ed321; color:#7ed321;">📷 画像を保存</button>
   <button class="btn btn-secondary" id="btn-crop-clear" style="display:none; border-color:#f5a623; color:#f5a623;">✂ クロップ中 ✕ 解除</button>
 
-  <div class="header-actions">
-    <button class="btn btn-secondary" id="btn-export">書き出し (JSON)</button>
-    <label class="btn btn-secondary" style="cursor:pointer;">
-      読み込み (JSON)
-      <input type="file" id="json-input" accept=".json" style="display:none">
-    </label>
-    <button class="btn btn-secondary" id="btn-gist-save" title="GitHub Gistに現在のデータを保存">☁ Gist保存</button>
-    <button class="btn btn-secondary" id="btn-gist-load" title="GitHub GistからデータをロードするにはGist IDが必要">☁ Gist読込</button>
-    <button class="btn btn-secondary" id="btn-gist-settings" title="GitHub Gist設定">⚙ Gist設定</button>
-    <button class="btn btn-secondary" id="btn-print">印刷/PDF</button>
+  <!-- メモ一覧トグル -->
+  <button class="btn btn-secondary" id="btn-sidebar-toggle" style="margin-left:auto;">📋 メモ</button>
+
+  <!-- ハンバーガーメニュー -->
+  <div id="menu-wrap">
+    <button class="btn btn-secondary" id="btn-menu" title="メニュー">☰</button>
+    <div id="header-menu">
+      <button class="btn btn-secondary btn-sm" id="btn-export">📤 書き出し (JSON)</button>
+      <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+        📥 読み込み (JSON)
+        <input type="file" id="json-input" accept=".json" style="display:none">
+      </label>
+      <div style="height:1px;background:#4a4238;margin:2px 0;"></div>
+      <button class="btn btn-secondary btn-sm" id="btn-gist-save">☁ Gist保存</button>
+      <button class="btn btn-secondary btn-sm" id="btn-gist-load">☁ Gist読込</button>
+      <button class="btn btn-secondary btn-sm" id="btn-gist-settings">⚙ Gist設定</button>
+      <div style="height:1px;background:#4a4238;margin:2px 0;"></div>
+      <button class="btn btn-secondary btn-sm" id="btn-print">🖨 印刷/PDF</button>
+    </div>
   </div>
 </header>
 
@@ -1377,6 +1396,25 @@ async function gistLoad() {
 
 document.getElementById('btn-gist-save').addEventListener('click', gistSave);
 document.getElementById('btn-gist-load').addEventListener('click', gistLoad);
+
+// ========== HAMBURGER MENU ==========
+const btnMenu = document.getElementById('btn-menu');
+const headerMenu = document.getElementById('header-menu');
+btnMenu.addEventListener('click', e => {
+  e.stopPropagation();
+  headerMenu.classList.toggle('open');
+});
+document.addEventListener('click', () => headerMenu.classList.remove('open'));
+headerMenu.addEventListener('click', e => e.stopPropagation());
+
+// ========== SIDEBAR TOGGLE ==========
+const sidebar = document.querySelector('.sidebar');
+const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
+btnSidebarToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed');
+  btnSidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '📋 メモ ▶' : '📋 メモ';
+  resizeCanvas();
+});
 
 // ========== PRINT ==========
 document.getElementById('btn-print').addEventListener('click', () => window.print());
