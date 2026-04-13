@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>間取りデザインメモ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -702,6 +702,72 @@ canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();
   zoom(e.deltaY < 0 ? 1.1 : 1/1.1, e.clientX - rect.left, e.clientY - rect.top);
+}, { passive: false });
+
+// ========== TOUCH (ピンチズーム・パン) ==========
+let lastTouchDist = null;
+let lastTouchMid  = null;
+let touchPanStart = null;
+
+function touchDist(t) {
+  const dx = t[0].clientX - t[1].clientX;
+  const dy = t[0].clientY - t[1].clientY;
+  return Math.hypot(dx, dy);
+}
+function touchMid(t, rect) {
+  return {
+    x: (t[0].clientX + t[1].clientX) / 2 - rect.left,
+    y: (t[0].clientY + t[1].clientY) / 2 - rect.top,
+  };
+}
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    lastTouchDist = touchDist(e.touches);
+    lastTouchMid  = touchMid(e.touches, canvas.getBoundingClientRect());
+    touchPanStart = null;
+  } else if (e.touches.length === 1) {
+    const rect = canvas.getBoundingClientRect();
+    touchPanStart = {
+      sx: e.touches[0].clientX - rect.left,
+      sy: e.touches[0].clientY - rect.top,
+      ox: state.offsetX,
+      oy: state.offsetY,
+    };
+    lastTouchDist = null;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  if (e.touches.length === 2 && lastTouchDist !== null) {
+    const dist = touchDist(e.touches);
+    const mid  = touchMid(e.touches, rect);
+    const factor = dist / lastTouchDist;
+    zoom(factor, mid.x, mid.y);
+    // ピンチ中心の移動でパンも追従
+    if (lastTouchMid) {
+      state.offsetX += mid.x - lastTouchMid.x;
+      state.offsetY += mid.y - lastTouchMid.y;
+      redraw();
+    }
+    lastTouchDist = dist;
+    lastTouchMid  = mid;
+  } else if (e.touches.length === 1 && touchPanStart) {
+    const sx = e.touches[0].clientX - rect.left;
+    const sy = e.touches[0].clientY - rect.top;
+    state.offsetX = touchPanStart.ox + (sx - touchPanStart.sx);
+    state.offsetY = touchPanStart.oy + (sy - touchPanStart.sy);
+    redraw();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (e.touches.length < 2) { lastTouchDist = null; lastTouchMid = null; }
+  if (e.touches.length === 0) { touchPanStart = null; }
 }, { passive: false });
 
 // ========== PAN & CLICK ==========
