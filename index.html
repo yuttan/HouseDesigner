@@ -829,6 +829,12 @@ let touchTapStart = null; // タップ判定用 { sx, sy }
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   if (e.touches.length === 2) {
+    // 描画中なら確定してからピンチへ
+    if (state.currentStroke) {
+      if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
+      state.currentStroke = null;
+      redrawStrokes();
+    }
     lastTouchDist = touchDist(e.touches);
     lastTouchMid  = touchMid(e.touches, canvas.getBoundingClientRect());
     touchPanStart = null;
@@ -837,12 +843,29 @@ canvas.addEventListener('touchstart', e => {
     const rect = canvas.getBoundingClientRect();
     const sx = e.touches[0].clientX - rect.left;
     const sy = e.touches[0].clientY - rect.top;
-    // パンモードまたはSpace中のみ1本指パンを有効化
     if (state.mode === 'pan' || spaceDown) {
       touchPanStart = { sx, sy, ox: state.offsetX, oy: state.offsetY };
+    } else if (state.mode === 'draw' && state.image) {
+      // 描画ストローク開始
+      const img = screenToImage(sx, sy);
+      state.currentStroke = {
+        tool:   state.drawMode,
+        color:  state.drawColor,
+        width:  state.drawWidth,
+        eraser: state.drawMode === 'eraser',
+        points: [img],
+      };
+      touchTapStart = null;
+    } else if (state.mode === 'crop' && state.image) {
+      // クロップ選択開始
+      state.cropSelecting = true;
+      state.cropStart = { x: sx, y: sy };
+      state.cropRect  = { x: sx, y: sy, w: 0, h: 0 };
+      cropConfirmBar.style.display = 'none';
+      touchTapStart = null;
     } else {
       touchPanStart = null;
-      touchTapStart = { sx, sy }; // タップ開始を記録
+      touchTapStart = { sx, sy };
     }
     lastTouchDist = null;
   }
@@ -863,6 +886,49 @@ canvas.addEventListener('touchmove', e => {
     }
     lastTouchDist = dist;
     lastTouchMid  = mid;
+  } else if (e.touches.length === 1 && state.currentStroke) {
+    // 描画中
+    const sx = e.touches[0].clientX - rect.left;
+    const sy = e.touches[0].clientY - rect.top;
+    const tool = state.currentStroke.tool || 'pen';
+    if (tool === 'pen' || tool === 'eraser') {
+      const img = screenToImage(sx, sy);
+      state.currentStroke.points.push(img);
+      const pts = state.currentStroke.points;
+      drawCtx.save();
+      drawCtx.lineWidth = state.currentStroke.width * state.imageScale;
+      drawCtx.lineCap   = 'round';
+      drawCtx.lineJoin  = 'round';
+      if (state.currentStroke.eraser) {
+        drawCtx.globalCompositeOperation = 'destination-out';
+        drawCtx.strokeStyle = 'rgba(0,0,0,1)';
+      } else {
+        drawCtx.strokeStyle = state.currentStroke.color;
+      }
+      const dpr = window.devicePixelRatio || 1;
+      drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawCtx.beginPath();
+      const prev = imageToScreen(pts[pts.length - 2].x, pts[pts.length - 2].y);
+      const curr = imageToScreen(pts[pts.length - 1].x, pts[pts.length - 1].y);
+      drawCtx.moveTo(prev.x, prev.y);
+      drawCtx.lineTo(curr.x, curr.y);
+      drawCtx.stroke();
+      drawCtx.restore();
+    } else if (tool !== 'dot') {
+      redrawStrokes();
+      drawStroke(drawCtx, state.currentStroke, { x: sx, y: sy });
+    }
+  } else if (e.touches.length === 1 && state.cropSelecting && state.cropStart) {
+    // クロップ範囲ドラッグ
+    const sx = e.touches[0].clientX - rect.left;
+    const sy = e.touches[0].clientY - rect.top;
+    state.cropRect = {
+      x: Math.min(sx, state.cropStart.x),
+      y: Math.min(sy, state.cropStart.y),
+      w: Math.abs(sx - state.cropStart.x),
+      h: Math.abs(sy - state.cropStart.y),
+    };
+    redraw();
   } else if (e.touches.length === 1 && touchPanStart) {
     const sx = e.touches[0].clientX - rect.left;
     const sy = e.touches[0].clientY - rect.top;
@@ -870,9 +936,8 @@ canvas.addEventListener('touchmove', e => {
     state.offsetY = touchPanStart.oy + (sy - touchPanStart.sy);
     redraw();
   } else if (touchTapStart) {
-    // 少し動いたらタップ判定を無効に
-    const sx = e.touches[0].clientX - canvas.getBoundingClientRect().left;
-    const sy = e.touches[0].clientY - canvas.getBoundingClientRect().top;
+    const sx = e.touches[0].clientX - rect.left;
+    const sy = e.touches[0].clientY - rect.top;
     if (Math.hypot(sx - touchTapStart.sx, sy - touchTapStart.sy) > 8) touchTapStart = null;
   }
 }, { passive: false });
@@ -882,8 +947,35 @@ canvas.addEventListener('touchend', e => {
   if (e.touches.length < 2) { lastTouchDist = null; lastTouchMid = null; }
   if (e.touches.length === 0) {
     touchPanStart = null;
-    // タップとして処理
-    if (touchTapStart && state.image) {
+    // 描画ストローク確定
+    if (state.currentStroke) {
+      const tool = state.currentStroke.tool || 'pen';
+      const t = e.changedTouches[0];
+      const rect = canvas.getBoundingClientRect();
+      const ex = t.clientX - rect.left;
+      const ey = t.clientY - rect.top;
+      if (tool === 'dot') {
+        state.strokes.push(state.currentStroke);
+      } else if (tool === 'pen' || tool === 'eraser') {
+        if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
+      } else {
+        state.currentStroke.points.push(screenToImage(ex, ey));
+        if (state.currentStroke.points.length >= 2) state.strokes.push(state.currentStroke);
+      }
+      state.currentStroke = null;
+      redrawStrokes();
+      saveToStorage();
+    } else if (state.cropSelecting) {
+      // クロップ範囲確定
+      state.cropSelecting = false;
+      if (state.cropRect && state.cropRect.w > 10 && state.cropRect.h > 10) {
+        cropConfirmBar.style.display = 'flex';
+      } else {
+        state.cropRect = null;
+        redraw();
+      }
+    } else if (touchTapStart && state.image) {
+      // タップ処理（ピン追加など）
       const { sx, sy } = touchTapStart;
       if (state.mode === 'pin') {
         const img = screenToImage(sx, sy);
