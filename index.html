@@ -43,7 +43,7 @@
   .zoom-label { background: #2c2825; border: 1px solid #4a4238; color: #b8a898; border-radius: 6px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; min-width: 52px; justify-content: center; }
 
   /* モードバー */
-  .mode-bar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 4px; z-index: 20; max-width: calc(100vw - 120px); }
+  .mode-bar { position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 4px; z-index: 20; max-width: calc(100vw - 120px); }
   .mode-btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; background: transparent; color: #b8a898; transition: all 0.2s; white-space: nowrap; }
   .mode-btn.active { background: #c8956c; color: #fff; }
   .mode-btn:hover:not(.active) { background: #4a4238; color: #e8e2d9; }
@@ -54,7 +54,7 @@
   }
 
   /* クロップ確定バー */
-  #crop-confirm-bar { position: absolute; top: 60px; right: 16px; display: none; gap: 6px; z-index: 30; }
+  #crop-confirm-bar { position: fixed; top: 60px; right: 16px; display: none; gap: 6px; z-index: 30; }
 
   /* サイドパネル */
   .sidebar { width: 340px; background: #2c2825; border-left: 1px solid #4a4238; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
@@ -165,7 +165,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* 描画ツールバー */
-  #draw-toolbar { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; align-items: center; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 6px 12px; z-index: 30; flex-wrap: wrap; max-width: calc(100vw - 32px); }
+  #draw-toolbar { position: fixed; bottom: 144px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; align-items: center; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 6px 12px; z-index: 30; flex-wrap: wrap; max-width: calc(100vw - 32px); }
   .draw-tool-btn, .draw-width-btn { background: none; border: 1px solid #4a4238; color: #e8e2d9; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
   .draw-tool-btn:hover, .draw-width-btn:hover { background: #4a4238; }
   .draw-tool-btn.active, .draw-width-btn.active { background: #c8956c; border-color: #c8956c; color: #fff; }
