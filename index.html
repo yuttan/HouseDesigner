@@ -89,6 +89,14 @@
   .pin.dragging { cursor: grabbing; opacity: 0.85; transform: translate(-50%, -100%) scale(1.25); z-index: 50; }
   .pin-icon { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.3); }
   .pin-icon span { transform: rotate(45deg); font-size: 13px; }
+  /* 移動待機状態 */
+  .pin.move-ready { z-index: 25; }
+  .pin.move-ready .pin-icon { animation: pin-pulse 0.9s ease-in-out infinite; border-color: rgba(255,255,255,0.9); }
+  @keyframes pin-pulse {
+    0%,100% { box-shadow: 0 0 0 0px rgba(200,149,108,0.7), 0 2px 8px rgba(0,0,0,0.5); }
+    50%      { box-shadow: 0 0 0 8px rgba(200,149,108,0),   0 2px 8px rgba(0,0,0,0.5); }
+  }
+  .pin.move-ready .pin-label { background: rgba(200,149,108,0.95); color: #fff; }
   .pin-label { background: rgba(13,13,26,0.85); color: #e8e2d9; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-top: 4px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 
   /* モーダル */
@@ -1160,6 +1168,8 @@ canvas.addEventListener('touchend', e => {
         redraw();
       }
     } else if (touchTapStart && state.image) {
+      // canvas タップで移動待機キャンセル
+      cancelPinMoveReady();
       // タップ処理（ピン追加など）
       const { sx, sy } = touchTapStart;
       if (state.mode === 'pin') {
@@ -1496,7 +1506,20 @@ canvasArea.addEventListener('drop', async e => {
 });
 
 // ========== PINS ==========
-let pinDrag = null; // { id, startX, startY, moved }
+let pinDrag = null;          // { id, startX, startY, moved }
+let pinMoveReady = null;     // ダブルタップで移動待機中のピンID
+let pinLastTap = { id: null, time: 0 };  // ダブルタップ検出用
+let pinLongPressTimer = null; // 長押しタイマー
+
+function setPinMoveReady(id) {
+  pinMoveReady = id;
+  updatePins();
+}
+function cancelPinMoveReady() {
+  if (pinMoveReady === null) return;
+  pinMoveReady = null;
+  updatePins();
+}
 
 function updatePins() {
   pinContainer.innerHTML = '';
@@ -1513,16 +1536,22 @@ function updatePins() {
 
     const sc  = imageToScreen(a.x, a.y);
     const pin = document.createElement('div');
-    pin.className = 'pin' + (a.id === state.selectedId ? ' selected' : '');
+    let pinClass = 'pin';
+    if (a.id === state.selectedId) pinClass += ' selected';
+    if (a.id === pinMoveReady)     pinClass += ' move-ready';
+    pin.className = pinClass;
     pin.dataset.id = a.id;
     pin.style.left = sc.x + 'px';
     pin.style.top  = sc.y + 'px';
     pin.style.pointerEvents = 'all';
 
     const ci = CAT_INFO[a.cat] || CAT_INFO.other;
+    const labelText = a.id === pinMoveReady
+      ? '長押しで移動'
+      : (a.pinId ? a.pinId : (a.room || a.material || ci.label));
     pin.innerHTML = `
       <div class="pin-icon" style="background:${ci.color}"><span>${ci.icon}</span></div>
-      <div class="pin-label">${a.pinId ? a.pinId : (a.room || a.material || ci.label)}</div>
+      <div class="pin-label">${labelText}</div>
     `;
 
     // ピンドラッグ開始
@@ -1543,15 +1572,36 @@ function updatePins() {
     pin.addEventListener('mouseenter', e => { if (!pinDrag) showTooltip(e, a); });
     pin.addEventListener('mouseleave', hideTooltip);
 
-    // タッチでピンをドラッグ
+    // タッチ：ダブルタップ→移動待機、長押し→ドラッグ開始
     pin.addEventListener('touchstart', e => {
       e.stopPropagation(); e.preventDefault();
-      const t = e.touches[0];
-      pinDrag = { id: a.id, startX: t.clientX, startY: t.clientY, moved: false };
-      pin.style.transition = 'none';
-      pin.style.zIndex = '50';
-      hideTooltip();
       touchTapStart = null;
+      hideTooltip();
+      const t = e.touches[0];
+      const now = Date.now();
+
+      if (pinMoveReady === a.id) {
+        // 移動待機中 → 長押しタイマー開始
+        clearTimeout(pinLongPressTimer);
+        const startX = t.clientX, startY = t.clientY;
+        pinLongPressTimer = setTimeout(() => {
+          pinLongPressTimer = null;
+          pinDrag = { id: a.id, startX, startY, moved: false };
+          pin.style.transition = 'none';
+          pin.style.zIndex = '50';
+          if (navigator.vibrate) navigator.vibrate(30);
+        }, 400);
+      } else if (pinLastTap.id === a.id && now - pinLastTap.time < 350) {
+        // ダブルタップ検出 → 移動待機へ
+        pinLastTap = { id: null, time: 0 };
+        setPinMoveReady(a.id);
+        selectAnnotation(a.id);
+      } else {
+        // シングルタップ → 移動待機キャンセル＆選択
+        cancelPinMoveReady();
+        pinLastTap = { id: a.id, time: now };
+        selectAnnotation(a.id);
+      }
     }, { passive: false });
     pinContainer.appendChild(pin);
   });
@@ -1590,11 +1640,17 @@ function onPinDragEnd(clientX, clientY) {
 document.addEventListener('mousemove', e => onPinDragMove(e.clientX, e.clientY));
 document.addEventListener('mouseup',   e => onPinDragEnd(e.clientX, e.clientY));
 document.addEventListener('touchmove', e => {
+  if (pinLongPressTimer) {
+    // 長押し前に指が動いたらタイマーキャンセル（スクロール等）
+    const t = e.touches[0];
+    clearTimeout(pinLongPressTimer); pinLongPressTimer = null;
+  }
   if (!pinDrag) return;
   e.preventDefault();
   onPinDragMove(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
 document.addEventListener('touchend', e => {
+  clearTimeout(pinLongPressTimer); pinLongPressTimer = null;
   if (!pinDrag) return;
   const t = e.changedTouches[0];
   onPinDragEnd(t.clientX, t.clientY);
