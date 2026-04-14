@@ -135,16 +135,6 @@
   .sidebar { transition: width 0.2s; }
   .sidebar.collapsed { width: 0; overflow: hidden; border: none; }
 
-  /* バージョン表記 */
-  #version-label {
-    font-size: 10px;
-    color: #6b5f54;
-    letter-spacing: 0.5px;
-    margin-left: 2px;
-    align-self: flex-end;
-    line-height: 1;
-    padding-bottom: 1px;
-  }
 
   /* フローティングメモトグルボタン */
   #btn-sidebar-toggle {
@@ -184,7 +174,7 @@
 <body>
 
 <header>
-  <h1>🏠 間取りデザインメモ</h1><span id="version-label">v0.01</span>
+  <h1>🏠 間取りデザインメモ</h1>
   <label class="btn btn-secondary" style="cursor:pointer;">
     図面を開く
     <input type="file" id="file-input" accept="image/*,.pdf" style="display:none">
@@ -501,9 +491,12 @@
         </div>
       </div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" id="btn-app-settings-cancel">キャンセル</button>
-      <button class="btn btn-primary" id="btn-app-settings-save">適用</button>
+    <div class="modal-actions" style="justify-content:space-between;align-items:center;">
+      <span style="font-size:11px;color:#6b5f54;letter-spacing:0.5px;">v0.01</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="btn-app-settings-cancel">キャンセル</button>
+        <button class="btn btn-primary" id="btn-app-settings-save">適用</button>
+      </div>
     </div>
   </div>
 </div>
