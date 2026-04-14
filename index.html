@@ -242,6 +242,11 @@
       <p style="font-size:12px;color:#444">PNG / JPG / WEBP / PDF 対応</p>
     </div>
 
+    <!-- サンプルバナー -->
+    <div id="sample-banner" style="display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(200,149,108,0.92);color:#fff;font-size:12px;padding:5px 16px;border-radius:20px;pointer-events:none;z-index:25;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+      📋 サンプル図面です — 「図面を開く」で自分の図面に切り替えられます
+    </div>
+
     <!-- モードバー -->
     <div class="mode-bar" id="mode-bar">
       <button class="mode-btn active" data-mode="pin" id="mode-pin">📍 ピン追加</button>
@@ -536,6 +541,7 @@ const state = {
   drawMode: 'pen',      // 'pen' | 'eraser'
   catCounters: { wall: 0, floor: 0, ceiling: 0, light: 0, door: 0, window: 0, other: 0 },
   accentColor: '#c8956c',
+  isSample: false,
 };
 
 const CAT_INFO = {
@@ -581,6 +587,7 @@ const pdfLoading     = document.getElementById('pdf-loading');
 const drawCanvas     = document.getElementById('draw-canvas');
 const drawCtx        = drawCanvas.getContext('2d');
 const drawToolbar    = document.getElementById('draw-toolbar');
+const sampleBanner   = document.getElementById('sample-banner');
 
 // ========== CANVAS ==========
 function resizeCanvas() {
@@ -723,17 +730,136 @@ function redrawStrokes() {
   for (const stroke of state.strokes) drawStroke(drawCtx, stroke);
 }
 
-function loadImage(src) {
+function loadSampleFloorplan() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="640" viewBox="0 0 900 640">
+  <rect width="900" height="640" fill="#f0ebe2"/>
+  <style>
+    .wall { stroke:#2d2520; stroke-linejoin:round; fill:none; }
+    .room { stroke:#2d2520; stroke-width:1.5; fill:rgba(255,251,244,0.7); }
+    .lbl  { font-family:"Hiragino Sans","Yu Gothic",sans-serif; fill:#2d2520; text-anchor:middle; dominant-baseline:middle; }
+    .lbl-lg { font-size:18px; font-weight:700; }
+    .lbl-sm { font-size:12px; }
+    .lbl-xs { font-size:10px; fill:#7a6a5a; }
+    .door { stroke:#2d2520; stroke-width:1.5; fill:none; }
+    .win  { stroke:#2d2520; stroke-width:3; fill:none; }
+    .inner{ stroke:#8a7a6a; stroke-width:1; fill:none; }
+  </style>
+
+  <!-- 外壁 -->
+  <rect x="60" y="50" width="760" height="540" rx="2" stroke="#2d2520" stroke-width="10" fill="#f9f6f0"/>
+
+  <!-- 間仕切り壁 -->
+  <!-- LDK | 右側ゾーン 縦壁 x=490 -->
+  <line x1="490" y1="50" x2="490" y2="400" stroke="#2d2520" stroke-width="8"/>
+  <!-- 洋室① / 洋室② 横壁 y=260 -->
+  <line x1="490" y1="260" x2="820" y2="260" stroke="#2d2520" stroke-width="8"/>
+  <!-- 上部ゾーン / 下部ゾーン 横壁 y=400 -->
+  <line x1="60" y1="400" x2="820" y2="400" stroke="#2d2520" stroke-width="8"/>
+  <!-- 玄関 / 廊下 縦壁 x=220 (下部のみ) -->
+  <line x1="220" y1="400" x2="220" y2="590" stroke="#2d2520" stroke-width="8"/>
+  <!-- 廊下 / 洗面+浴室 縦壁 x=430 (下部のみ) -->
+  <line x1="430" y1="400" x2="430" y2="590" stroke="#2d2520" stroke-width="8"/>
+  <!-- 洗面 / WC 縦壁 x=630 (下部のみ) -->
+  <line x1="630" y1="400" x2="630" y2="590" stroke="#2d2520" stroke-width="8"/>
+  <!-- 洗面所 / 浴室 横壁 y=490 (x430-630) -->
+  <line x1="430" y1="490" x2="630" y2="490" stroke="#2d2520" stroke-width="8"/>
+
+  <!-- ドア（引き戸・開き戸） -->
+  <!-- LDK入口 (廊下から) -->
+  <line x1="220" y1="430" x2="280" y2="430" stroke="#f9f6f0" stroke-width="9"/>
+  <line x1="220" y1="430" x2="220" y2="490" stroke="#2d2520" stroke-width="1.5"/>
+  <path d="M220,430 A60,60 0 0,1 280,430" class="door"/>
+  <!-- 洋室①ドア -->
+  <line x1="490" y1="80" x2="490" y2="140" stroke="#f9f6f0" stroke-width="9"/>
+  <line x1="490" y1="80" x2="550" y2="80" stroke="#2d2520" stroke-width="1.5"/>
+  <path d="M490,80 A60,60 0 0,1 490,140" class="door"/>
+  <!-- 洋室②ドア -->
+  <line x1="490" y1="290" x2="490" y2="350" stroke="#f9f6f0" stroke-width="9"/>
+  <line x1="490" y1="290" x2="550" y2="290" stroke="#2d2520" stroke-width="1.5"/>
+  <path d="M490,290 A60,60 0 0,1 490,350" class="door"/>
+  <!-- 洗面所ドア -->
+  <line x1="450" y1="400" x2="510" y2="400" stroke="#f9f6f0" stroke-width="9"/>
+  <line x1="450" y1="400" x2="450" y2="460" stroke="#2d2520" stroke-width="1.5"/>
+  <path d="M450,400 A60,60 0 0,1 510,400" class="door"/>
+  <!-- 浴室ドア -->
+  <line x1="450" y1="490" x2="510" y2="490" stroke="#f9f6f0" stroke-width="9"/>
+  <line x1="450" y1="490" x2="450" y2="550" stroke="#2d2520" stroke-width="1.5"/>
+  <path d="M450,490 A60,60 0 0,0 510,490" class="door"/>
+  <!-- WCドア -->
+  <line x1="645" y1="400" x2="705" y2="400" stroke="#f9f6f0" stroke-width="9"/>
+  <line x1="645" y1="400" x2="645" y2="460" stroke="#2d2520" stroke-width="1.5"/>
+  <path d="M645,400 A60,60 0 0,1 705,400" class="door"/>
+  <!-- 玄関ドア（外側） -->
+  <line x1="100" y1="590" x2="180" y2="590" stroke="#f9f6f0" stroke-width="9"/>
+  <rect x="100" y="568" width="80" height="6" fill="#2d2520"/>
+
+  <!-- 窓（LDK南面） -->
+  <line x1="120" y1="590" x2="360" y2="590" stroke="#4a90e2" stroke-width="5"/>
+  <line x1="120" y1="585" x2="360" y2="585" stroke="#4a90e2" stroke-width="2"/>
+  <!-- 窓（LDK西面） -->
+  <line x1="60" y1="100" x2="60" y2="280" stroke="#4a90e2" stroke-width="5"/>
+  <line x1="65" y1="100" x2="65" y2="280" stroke="#4a90e2" stroke-width="2"/>
+  <!-- 窓（洋室①北面） -->
+  <line x1="560" y1="50" x2="760" y2="50" stroke="#4a90e2" stroke-width="5"/>
+  <line x1="560" y1="55" x2="760" y2="55" stroke="#4a90e2" stroke-width="2"/>
+  <!-- 窓（洋室②東面） -->
+  <line x1="820" y1="270" x2="820" y2="390" stroke="#4a90e2" stroke-width="5"/>
+  <line x1="815" y1="270" x2="815" y2="390" stroke="#4a90e2" stroke-width="2"/>
+
+  <!-- ルームラベル -->
+  <text x="275" y="210" class="lbl lbl-lg">LDK</text>
+  <text x="275" y="235" class="lbl lbl-sm">リビング・ダイニング・キッチン</text>
+  <!-- キッチンカウンター -->
+  <rect x="100" y="300" width="160" height="50" rx="3" fill="#ddd8cc" stroke="#2d2520" stroke-width="1.5"/>
+  <text x="180" y="325" class="lbl lbl-xs">キッチン</text>
+  <rect x="280" y="300" width="80" height="50" rx="3" fill="#d8f0e8" stroke="#2d2520" stroke-width="1.5"/>
+  <text x="320" y="325" class="lbl lbl-xs">シンク</text>
+
+  <text x="655" y="155" class="lbl lbl-lg">洋室①</text>
+  <text x="655" y="178" class="lbl lbl-xs">約6帖</text>
+  <text x="655" y="325" class="lbl lbl-lg">洋室②</text>
+  <text x="655" y="348" class="lbl lbl-xs">約6帖</text>
+
+  <text x="140" y="500" class="lbl lbl-lg" font-size="15px">玄関</text>
+  <text x="325" y="500" class="lbl lbl-lg" font-size="14px">廊下</text>
+  <text x="530" y="445" class="lbl lbl-sm">洗面所</text>
+  <text x="530" y="545" class="lbl lbl-sm">浴室</text>
+  <text x="725" y="495" class="lbl lbl-sm">WC</text>
+
+  <!-- 洗面台 -->
+  <rect x="445" y="405" width="50" height="40" rx="4" fill="#c8e8f8" stroke="#2d2520" stroke-width="1.5"/>
+  <circle cx="470" cy="425" r="8" fill="none" stroke="#2d2520" stroke-width="1.5"/>
+  <!-- 浴槽 -->
+  <rect x="445" y="500" width="100" height="75" rx="8" fill="#c8e8f8" stroke="#2d2520" stroke-width="1.5"/>
+  <rect x="455" y="510" width="80" height="55" rx="6" fill="#a0d0f0" stroke="#2d2520" stroke-width="1"/>
+  <!-- 便器 -->
+  <ellipse cx="720" cy="500" rx="22" ry="28" fill="#f0f0e8" stroke="#2d2520" stroke-width="1.5"/>
+  <rect x="700" y="440" width="44" height="16" rx="3" fill="#e0e0d8" stroke="#2d2520" stroke-width="1.5"/>
+
+  <!-- 寸法補助線 -->
+  <text x="440" y="628" class="lbl lbl-xs">← 約14m →</text>
+  <text x="32" y="320" class="lbl lbl-xs" transform="rotate(-90,32,320)">← 約10m →</text>
+
+  <!-- タイトル -->
+  <text x="450" y="26" class="lbl" font-size="13px" fill="#7a6a5a">サンプル間取り図（2LDK）― 自分の図面を開くと置き換えられます</text>
+</svg>`;
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url  = URL.createObjectURL(blob);
+  loadImage(url, true); // true = isSample
+}
+
+function loadImage(src, isSample = false) {
   const img = new Image();
   img.onload = () => {
     state.image = img;
+    state.isSample = !!isSample;
     state.pdfDoc = null;
     state.pdfTotal = 0;
-    state.crop = null;
-    btnCropClear.style.display = 'none';
+    if (!isSample) { state.crop = null; btnCropClear.style.display = 'none'; }
     updatePageSelector();
     fitImage();
     placeholder.classList.add('hidden');
+    sampleBanner.style.display = isSample ? '' : 'none';
     redraw();
   };
   img.src = src;
@@ -1342,6 +1468,7 @@ document.getElementById('btn-draw-clear').addEventListener('click', () => {
 document.getElementById('file-input').addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
+  sampleBanner.style.display = 'none'; state.isSample = false;
   if (file.type === 'application/pdf') {
     await loadPdf(file);
   } else {
@@ -1360,6 +1487,7 @@ canvasArea.addEventListener('drop', async e => {
   canvasArea.classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
   if (!file) return;
+  sampleBanner.style.display = 'none'; state.isSample = false;
   if (file.type === 'application/pdf') {
     await loadPdf(file);
   } else if (file.type.startsWith('image/')) {
@@ -1988,6 +2116,8 @@ applyAccent(savedAccent);
 resizeCanvas();
 renderList();
 updateZoomLabel();
+// サンプル図面を表示（ユーザーが図面を開いていない初期状態）
+loadSampleFloorplan();
 </script>
 
 
