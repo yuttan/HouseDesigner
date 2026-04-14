@@ -43,7 +43,7 @@
   .zoom-label { background: #2c2825; border: 1px solid #4a4238; color: #b8a898; border-radius: 6px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; min-width: 52px; justify-content: center; }
 
   /* モードバー */
-  .mode-bar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 4px; }
+  .mode-bar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 4px; z-index: 20; }
   .mode-btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; background: transparent; color: #b8a898; transition: all 0.2s; white-space: nowrap; }
   .mode-btn.active { background: #c8956c; color: #fff; }
   .mode-btn:hover:not(.active) { background: #4a4238; color: #e8e2d9; }
@@ -132,15 +132,13 @@
 
   /* バージョン表記 */
   #version-label {
-    position: fixed;
-    bottom: 6px;
-    left: 50%;
-    transform: translateX(-50%);
     font-size: 10px;
-    color: #4a4238;
-    pointer-events: none;
+    color: #6b5f54;
     letter-spacing: 0.5px;
-    z-index: 10;
+    margin-left: 2px;
+    align-self: flex-end;
+    line-height: 1;
+    padding-bottom: 1px;
   }
 
   /* フローティングメモトグルボタン */
@@ -172,7 +170,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* 描画ツールバー */
-  #draw-toolbar { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; align-items: center; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 6px 12px; z-index: 30; flex-wrap: wrap; }
+  #draw-toolbar { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; align-items: center; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 6px 12px; z-index: 30; flex-wrap: wrap; max-width: calc(100vw - 32px); }
   .draw-tool-btn, .draw-width-btn { background: none; border: 1px solid #4a4238; color: #e8e2d9; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
   .draw-tool-btn:hover, .draw-width-btn:hover { background: #4a4238; }
   .draw-tool-btn.active, .draw-width-btn.active { background: #c8956c; border-color: #c8956c; color: #fff; }
@@ -181,7 +179,7 @@
 <body>
 
 <header>
-  <h1>🏠 間取りデザインメモ</h1>
+  <h1>🏠 間取りデザインメモ</h1><span id="version-label">v0.01</span>
   <label class="btn btn-secondary" style="cursor:pointer;">
     図面を開く
     <input type="file" id="file-input" accept="image/*,.pdf" style="display:none">
@@ -369,8 +367,6 @@
     </div>
   </div>
 </div>
-
-<div id="version-label">v0.01</div>
 
 <!-- サイドバーフローティングトグル -->
 <button id="btn-sidebar-toggle" title="メモ一覧を開閉">📋</button>
