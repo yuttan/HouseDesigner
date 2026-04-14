@@ -43,10 +43,15 @@
   .zoom-label { background: #2c2825; border: 1px solid #4a4238; color: #b8a898; border-radius: 6px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; min-width: 52px; justify-content: center; }
 
   /* モードバー */
-  .mode-bar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 4px; z-index: 20; }
+  .mode-bar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: #2c2825; border: 1px solid #4a4238; border-radius: 8px; padding: 4px; z-index: 20; max-width: calc(100vw - 120px); }
   .mode-btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; background: transparent; color: #b8a898; transition: all 0.2s; white-space: nowrap; }
   .mode-btn.active { background: #c8956c; color: #fff; }
   .mode-btn:hover:not(.active) { background: #4a4238; color: #e8e2d9; }
+  /* スマホ：テキストを非表示にしてアイコンのみ */
+  @media (max-width: 540px) {
+    .mode-btn { padding: 8px 10px; font-size: 16px; }
+    .mode-btn .mode-label { display: none; }
+  }
 
   /* クロップ確定バー */
   #crop-confirm-bar { position: absolute; top: 60px; right: 16px; display: none; gap: 6px; z-index: 30; }
@@ -249,11 +254,11 @@
 
     <!-- モードバー -->
     <div class="mode-bar" id="mode-bar">
-      <button class="mode-btn active" data-mode="pin" id="mode-pin">📍 ピン追加</button>
-      <button class="mode-btn" data-mode="pan" id="mode-pan">✋ パン</button>
-      <button class="mode-btn" data-mode="select" id="mode-select">↖ 選択</button>
-      <button class="mode-btn" data-mode="crop" id="mode-crop">✂ クロップ</button>
-      <button class="mode-btn" data-mode="draw" id="mode-draw">✏️ 描画</button>
+      <button class="mode-btn active" data-mode="pin" id="mode-pin" title="ピン追加 (P)">📍<span class="mode-label"> ピン追加</span></button>
+      <button class="mode-btn" data-mode="pan" id="mode-pan" title="パン (H)">✋<span class="mode-label"> パン</span></button>
+      <button class="mode-btn" data-mode="select" id="mode-select" title="選択 (S)">↖<span class="mode-label"> 選択</span></button>
+      <button class="mode-btn" data-mode="crop" id="mode-crop" title="クロップ (C)">✂<span class="mode-label"> クロップ</span></button>
+      <button class="mode-btn" data-mode="draw" id="mode-draw" title="描画 (D)">✏️<span class="mode-label"> 描画</span></button>
     </div>
 
     <!-- 描画ツールバー -->
